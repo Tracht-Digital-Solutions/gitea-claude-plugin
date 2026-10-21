@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "gitea",
   "displayName": "Gitea",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Work with any Gitea instance from Claude Code: repositories, files, branches, issues, project boards, pull requests, reviews, organisations, time tracking, Gitea Actions, releases, packages, wiki and webhooks via a bundled MCP server.",
   "author": {
     "name": "Julian Tracht",

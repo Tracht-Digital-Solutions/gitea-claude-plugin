@@ -60796,6 +60796,10 @@ var SECTION_TITLES = {
   chore: "Chores",
   other: "Other changes"
 };
+function isPrereleaseTag(tag) {
+  if (/^v?\d+(?:\.\d+){0,2}-[0-9A-Za-z][0-9A-Za-z.-]*(?:\+[0-9A-Za-z.-]+)?$/.test(tag)) return true;
+  return /(?:^|[-_.])(alpha|beta|rc|pre|preview|dev|snapshot|nightly)(?:$|[-_.\d])/i.test(tag);
+}
 function buildReleaseNotes(commits, opts) {
   const groups = /* @__PURE__ */ new Map();
   for (const c of commits) {
@@ -60964,7 +60968,7 @@ var releaseTools = [
       generate_notes: boolean2().default(false),
       previous_tag: string2().max(255).optional(),
       draft: boolean2().default(false),
-      prerelease: boolean2().optional().describe("Default: true for versions like v1.0.0-rc.1"),
+      prerelease: boolean2().optional().describe("Default: true for SemVer pre-release tags such as v1.0.0-rc.1 or v1.0.0-test.1"),
       tag_message: string2().max(1e4).optional().describe("Annotation for a newly created tag")
     },
     async run(args, ctx) {
@@ -60978,7 +60982,7 @@ var releaseTools = [
 ${g.notes}` : g.notes;
         generated = { previous_tag: g.previous_tag, commit_count: g.commit_count };
       }
-      const prerelease = args.prerelease ?? /-(alpha|beta|rc|pre|preview|dev)/i.test(args.tag);
+      const prerelease = args.prerelease ?? isPrereleaseTag(args.tag);
       const res = await ctx.client.request({
         method: "POST",
         path: `${repoPath(owner2, repo)}/releases`,
