@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "gitea": {
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/dist/server.mjs"],
+      "env": {
+        "GITEA_URL": "${user_config.gitea_url}",
+        "GITEA_TOKEN": "${user_config.gitea_token}",
+        "GITEA_ALLOW_WRITE": "${user_config.allow_write}",
+        "GITEA_ALLOW_DESTRUCTIVE": "${user_config.allow_destructive}",
+        "GITEA_ALLOW_ADMIN": "${user_config.allow_admin}",
+        "GITEA_CA_FILE": "${user_config.ca_file}",
+        "GITEA_USE_SYSTEM_CA": "${user_config.use_system_ca}",
+        "GITEA_PROFILES_FILE": "${user_config.profiles_file}",
+        "GITEA_ALLOW_HTTP": "${user_config.allow_insecure_http}",
+        "GITEA_WORKDIR": "${CLAUDE_PROJECT_DIR}"
+      }
+    }
+  }
+}
