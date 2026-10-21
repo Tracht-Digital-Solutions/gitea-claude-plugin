@@ -23,6 +23,10 @@ export const FEATURE_ENDPOINTS = {
   pr_update_branch: 'POST /repos/{owner}/{repo}/pulls/{index}/update',
   notifications: 'GET /notifications',
   projects: 'GET /repos/{owner}/{repo}/projects',
+  time_tracking: 'GET /repos/{owner}/{repo}/issues/{index}/times',
+  wiki: 'GET /repos/{owner}/{repo}/wiki/pages',
+  packages: 'GET /packages/{owner}',
+  actions_runners: 'GET /repos/{owner}/{repo}/actions/runners',
   repo_archive_download: 'GET /repos/{owner}/{repo}/archive/{archive}',
 } as const;
 

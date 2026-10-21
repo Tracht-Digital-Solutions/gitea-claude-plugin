@@ -16,6 +16,8 @@ export interface RequestOptions {
   query?: Record<string, QueryValue>;
   body?: unknown;
   form?: FormData;
+  /** Raw request body sent as application/octet-stream (file uploads to package registries). */
+  raw?: Uint8Array;
   /** How to read the response body. */
   responseType?: 'json' | 'text' | 'binary';
   /** Override the retry policy (default: retry idempotent GET requests only). */
@@ -228,8 +230,9 @@ export class GiteaHttpClient {
     const where = `${method} ${opts.path}`;
     let url = this.url(opts.path, opts.query, opts.root);
     const accept = responseType === 'json' ? 'application/json' : '*/*';
-    let bodyInit: string | FormData | undefined;
+    let bodyInit: string | FormData | Uint8Array | undefined;
     if (opts.form) bodyInit = opts.form;
+    else if (opts.raw) bodyInit = opts.raw;
     else if (opts.body !== undefined) bodyInit = JSON.stringify(opts.body);
 
     for (let attempt = 0; ; attempt++) {
@@ -241,7 +244,10 @@ export class GiteaHttpClient {
           this.options.onRequest?.({ method, url });
           res = await fetch(url, {
             method,
-            headers: this.headers(withAuth, accept, opts.body !== undefined && !opts.form),
+            headers: {
+              ...this.headers(withAuth, accept, opts.body !== undefined && !opts.form && !opts.raw),
+              ...(opts.raw ? { 'content-type': 'application/octet-stream' } : {}),
+            },
             body: bodyInit,
             redirect: 'manual',
             dispatcher: this.dispatcher,

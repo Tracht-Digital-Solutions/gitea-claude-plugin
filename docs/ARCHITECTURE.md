@@ -14,8 +14,8 @@
 │ index.ts        process entry, Node version check, stdio transport   │
 │ server.ts       tool registration, permission gate, feature gate,    │
 │                 confirmation (elicitation / token), result formatting │
-│ tools/          registry + 11 modules (repos, contents, git, issues, projects, │
-│                 pulls, orgs, actions, releases, extended, connection) │
+│ tools/          registry + 14 modules (repos, contents, git, issues, projects, time, │
+│                 pulls, orgs, actions, releases, packages, wiki, extended, connection) │
 │ gitea/          http client · errors · capabilities · models         │
 │ config/         plugin options, env, profiles file, access levels    │
 │ security/       redaction · URL/path validation                       │

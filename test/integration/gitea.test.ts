@@ -485,6 +485,158 @@ describe.skipIf(!env)('Gitea integration', () => {
     });
   });
 
+  describe('time tracking', () => {
+    it('books, lists and deletes tracked time with all parameters', async () => {
+      const a = await h.call('time_add', { owner, repo: REPO, number: 1, duration: '1h30m' });
+      expect(a.added).toMatchObject({ seconds: 5400, duration: '1h30m', user: owner });
+      const b = await h.call('time_add', {
+        owner,
+        repo: REPO,
+        number: 1,
+        duration: 900,
+        created: '2026-01-15T09:00:00Z',
+        user_name: REVIEWER,
+      });
+      expect(b.added).toMatchObject({ seconds: 900, user: REVIEWER });
+      // Gitea 28.2 ignores `created` and stores the current time; the tool reports that honestly.
+      expect(b.warning).toMatch(/ignored the requested date/);
+      const issueTimes = await h.call('time_list', { owner, repo: REPO, number: 1 });
+      expect(issueTimes.total_seconds).toBe(6300);
+      expect(issueTimes.by_user).toEqual({ [owner]: '1h30m', [REVIEWER]: '15m' });
+      const byUser = await h.call('time_list', { owner, repo: REPO, user: REVIEWER });
+      expect(byUser.entries.map((e: Obj) => e.user)).toEqual([REVIEWER]);
+      const today = new Date(Date.now() - 86_400_000).toISOString().replace(/.d+Z$/, 'Z');
+      const range = await h.call('time_list', { owner, repo: REPO, since: today });
+      expect(range.total_seconds).toBe(6300);
+      const before = await h.call('time_list', { owner, repo: REPO, before: '2026-02-01T00:00:00Z' });
+      expect(before.total_seconds).toBe(0);
+      const mine = await h.call('time_list', { mine: true });
+      expect(mine.total_seconds).toBeGreaterThanOrEqual(5400);
+      const bad = await h.fail('time_add', { owner, repo: REPO, number: 1, duration: 'later' });
+      expect(bad.code).toBe('INVALID_INPUT');
+      await h.call('time_delete', { owner, repo: REPO, number: 1, id: b.added.id });
+      await h.call('stopwatch', { owner, repo: REPO, number: 2, action: 'start' });
+      const running = await h.call('stopwatch_list');
+      expect(running.stopwatches.map((w: Obj) => w.issue)).toContain(2);
+      await h.call('stopwatch', { owner, repo: REPO, number: 2, action: 'cancel' });
+      expect((await h.call('stopwatch_list')).stopwatches).toEqual([]);
+      await h.call('stopwatch', { owner, repo: REPO, number: 2, action: 'start' });
+      await h.call('stopwatch', { owner, repo: REPO, number: 2, action: 'stop' });
+      await h.call('time_delete', { owner, repo: REPO, number: 1, all: true });
+      expect((await h.call('time_list', { owner, repo: REPO, number: 1, user: owner })).total_seconds).toBe(
+        0,
+      );
+    });
+  });
+
+  describe('wiki', () => {
+    it('creates, reads, edits, renames and deletes wiki pages', async () => {
+      const disabled = await h.fail('wiki_page_create', { owner, repo: REPO, title: 'x', content: 'x' });
+      expect(disabled).toMatchObject({ code: 'UNSUPPORTED' });
+      expect(disabled.hint).toMatch(/has_wiki/);
+      await h.call('repo_update', { owner, repo: REPO, has_wiki: true });
+      const c = await h.call('wiki_page_create', {
+        owner,
+        repo: REPO,
+        title: 'Getting Started',
+        content: '# Start\nHello',
+        message: 'docs: add start page',
+      });
+      expect(c.page.title).toBe('Getting Started');
+      const list = await h.call('wiki_page_list', { owner, repo: REPO });
+      expect(list.pages.map((p: Obj) => p.title)).toContain('Getting Started');
+      const got = await h.call('wiki_page_get', { owner, repo: REPO, page: 'Getting Started' });
+      expect(got.content).toBe('# Start\nHello');
+      await h.call('wiki_page_update', {
+        owner,
+        repo: REPO,
+        page: 'Getting Started',
+        content: '# Start\nUpdated',
+      });
+      const before = await h.call('wiki_page_get', {
+        owner,
+        repo: REPO,
+        page: 'Getting Started',
+        include_history: true,
+      });
+      expect(before.history.map((c: Obj) => c.message)).toContain('docs: add start page');
+      expect(before.history.length).toBeGreaterThanOrEqual(2);
+      const renamed = await h.call('wiki_page_update', {
+        owner,
+        repo: REPO,
+        page: 'Getting Started',
+        new_title: 'Quickstart',
+      });
+      expect(renamed.page.title).toBe('Quickstart');
+      const hist = await h.call('wiki_page_get', {
+        owner,
+        repo: REPO,
+        page: 'Quickstart',
+        include_history: true,
+      });
+      expect(hist.content).toBe('# Start\nUpdated');
+      expect(hist.history.length).toBeGreaterThanOrEqual(1);
+      const missing = await h.fail('wiki_page_get', { owner, repo: REPO, page: 'Nope' });
+      expect(missing.hint).toMatch(/Quickstart/);
+      await h.call('wiki_page_delete', { owner, repo: REPO, page: 'Quickstart' });
+      expect((await h.call('wiki_page_list', { owner, repo: REPO })).pages).toEqual([]);
+    });
+  });
+
+  describe('packages', () => {
+    it('uploads, lists, inspects, links and deletes generic packages', async () => {
+      writeFileSync(join(cwd, 'tool-1.0.0.tar.gz'), 'package-bytes');
+      const up = await h.call('package_upload_generic', {
+        owner,
+        name: 'it-tool',
+        version: '1.0.0',
+        file: 'tool-1.0.0.tar.gz',
+      });
+      expect(up).toMatchObject({ uploaded: true, bytes: 13 });
+      await h.call('package_upload_generic', {
+        owner,
+        name: 'it-tool',
+        version: '1.1.0',
+        file: 'tool-1.0.0.tar.gz',
+        file_name: 'tool.tar.gz',
+      });
+      const list = await h.call('package_list', { owner, type: 'generic' });
+      expect(list.packages.map((p: Obj) => p.version).sort()).toEqual(['1.0.0', '1.1.0']);
+      const versions = await h.call('package_get', { owner, type: 'generic', name: 'it-tool' });
+      expect(versions.versions).toHaveLength(2);
+      const v = await h.call('package_get', { owner, type: 'generic', name: 'it-tool', version: '1.0.0' });
+      expect(v.files).toEqual([
+        { name: 'tool-1.0.0.tar.gz', size: 13, sha256: expect.stringMatching(/^[0-9a-f]{64}$/) },
+      ]);
+      const latest = await h.call('package_get', {
+        owner,
+        type: 'generic',
+        name: 'it-tool',
+        version: 'latest',
+      });
+      expect(latest.files[0].name).toBe('tool.tar.gz');
+      await h.call('package_link', { owner, type: 'generic', name: 'it-tool', repo: REPO });
+      const linked = await h.call('package_get', {
+        owner,
+        type: 'generic',
+        name: 'it-tool',
+        version: '1.0.0',
+      });
+      expect(linked.repository).toBe(`${owner}/${REPO}`);
+      await h.call('package_link', { owner, type: 'generic', name: 'it-tool', action: 'unlink' });
+      const outside = await h.fail('package_upload_generic', {
+        owner,
+        name: 'x',
+        version: '1',
+        file: '../../etc/hosts',
+      });
+      expect(outside.code).toBe('INVALID_INPUT');
+      await h.call('package_delete', { owner, type: 'generic', name: 'it-tool', version: '1.0.0' });
+      await h.call('package_delete', { owner, type: 'generic', name: 'it-tool' });
+      expect((await h.call('package_list', { owner, type: 'generic' })).packages).toEqual([]);
+    });
+  });
+
   describe('pull requests', () => {
     it('creates a pull request from local changes', async () => {
       const auth = new URL(e.url);
@@ -777,6 +929,13 @@ describe.skipIf(!env)('Gitea integration', () => {
       expect(full.log).toContain('hello from integration');
     });
 
+    it('lists runners for repository, user and organisation', async () => {
+      const r = await h.call('actions_runner_list', { owner, repo: REPO });
+      expect(r).toHaveProperty('total');
+      expect((await h.call('actions_runner_list', { scope: 'user' })).scope).toBe('user');
+      expect((await h.call('actions_runner_list', { scope: 'org', org: ORG })).scope).toBe('org');
+    });
+
     it('re-runs, dispatches and cancels runs and lists artifacts', async () => {
       const rerun = await h.call('actions_run_rerun', {
         owner,
@@ -987,6 +1146,22 @@ describe.skipIf(!env)('Gitea integration', () => {
     }
 
     it('every request the tools sent uses a documented endpoint and documented query parameters', () => {
+      // The generic package registry lives outside /api/v1 and is documented separately
+      // (https://docs.gitea.com/usage/packages/generic): only PUT uploads of that exact form are allowed.
+      const registry = recorded.filter((r) => r.url.pathname.startsWith('/api/packages/'));
+      expect(registry.length).toBeGreaterThan(0);
+      for (const r of registry) {
+        expect(`${r.method} ${r.url.pathname}`).toMatch(
+          /^PUT \/api\/packages\/[^/]+\/generic\/[^/]+\/[^/]+\/[^/]+$/,
+        );
+      }
+      const unexpected = recorded.filter(
+        (r) =>
+          !r.url.pathname.startsWith('/api/v1/') &&
+          !r.url.pathname.startsWith('/api/packages/') &&
+          r.url.pathname !== '/swagger.v1.json',
+      );
+      expect(unexpected.map((r) => `${r.method} ${r.url.pathname}`)).toEqual([]);
       const apiRequests = recorded.filter((r) => r.url.pathname.startsWith('/api/v1/'));
       expect(apiRequests.length).toBeGreaterThan(300);
       const problems = new Set<string>();

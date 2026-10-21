@@ -7,10 +7,13 @@ import { extendedTools } from './modules/extended.js';
 import { gitTools } from './modules/git.js';
 import { issueTools } from './modules/issues.js';
 import { orgTools } from './modules/orgs.js';
+import { packageTools } from './modules/packages.js';
 import { projectTools } from './modules/projects.js';
 import { pullTools } from './modules/pulls.js';
 import { releaseTools } from './modules/releases.js';
 import { repoTools } from './modules/repos.js';
+import { timeTools } from './modules/time.js';
+import { wikiTools } from './modules/wiki.js';
 
 /** Every tool the server knows, in display order. */
 export const ALL_TOOLS: readonly ToolDefinition[] = [
@@ -20,10 +23,13 @@ export const ALL_TOOLS: readonly ToolDefinition[] = [
   ...gitTools,
   ...issueTools,
   ...projectTools,
+  ...timeTools,
   ...pullTools,
   ...orgTools,
   ...actionTools,
   ...releaseTools,
+  ...packageTools,
+  ...wikiTools,
   ...extendedTools,
 ];
 
