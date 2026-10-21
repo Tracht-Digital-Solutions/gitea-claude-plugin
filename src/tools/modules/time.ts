@@ -1,7 +1,7 @@
 import * as z from 'zod/v4';
 import { GiteaError } from '../../gitea/errors.js';
 import { compact } from '../../gitea/models.js';
-import { dateSchema, indexSchema, pagingShape, profileShape, repoPath, repoShape } from '../common.js';
+import { dateSchema, indexSchema, pagingShape, profileShape, repoShape } from '../common.js';
 import { defineTool, type ToolDefinition } from '../types.js';
 
 const M = 'time_tracking';
@@ -98,10 +98,8 @@ export const timeTools: ToolDefinition[] = [
       let query: Record<string, string | undefined> = { since: args.since, before: args.before };
       if (args.mine) path = '/user/times';
       else {
-        const { owner, repo } = await ctx.repo(args);
-        path = args.number
-          ? `${repoPath(owner, repo)}/issues/${args.number}/times`
-          : `${repoPath(owner, repo)}/times`;
+        const repo = await ctx.repo(args);
+        path = args.number ? `${repo.api}/issues/${args.number}/times` : `${repo.api}/times`;
         query = { ...query, user: args.user };
       }
       const res = await ctx.client.paginate<RawTime>(path, query, { limit: args.limit, page: args.page });
@@ -125,12 +123,12 @@ export const timeTools: ToolDefinition[] = [
       user_name: z.string().max(100).optional().describe('Book for this user (requires admin rights).'),
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       const seconds = parseDuration(args.duration);
       if (seconds <= 0) throw new GiteaError('INVALID_INPUT', 'Duration must be positive.');
       const res = await ctx.client.request<RawTime>({
         method: 'POST',
-        path: `${repoPath(owner, repo)}/issues/${args.number}/times`,
+        path: `${repo.api}/issues/${args.number}/times`,
         body: compact({ time: seconds, created: args.created, user_name: args.user_name }),
       });
       // The POST response echoes the requested date; read the stored entry back to report what
@@ -139,7 +137,7 @@ export const timeTools: ToolDefinition[] = [
       let warning: string | undefined;
       if (args.created) {
         const list = await ctx.client.paginate<RawTime>(
-          `${repoPath(owner, repo)}/issues/${args.number}/times`,
+          `${repo.api}/issues/${args.number}/times`,
           {},
           { limit: 1000 },
         );
@@ -167,18 +165,18 @@ export const timeTools: ToolDefinition[] = [
       all: z.boolean().default(false),
     },
     async confirm(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       if (!args.id && !args.all) throw new GiteaError('INVALID_INPUT', 'Pass id, or all: true.');
       return {
-        target: `${owner}/${repo}#${args.number}:time-${args.all ? 'all' : String(args.id)}`,
+        target: `${repo.fullName}#${args.number}:time-${args.all ? 'all' : String(args.id)}`,
         action: args.all
-          ? `Delete ALL of your tracked time on ${owner}/${repo}#${args.number}.`
-          : `Delete tracked-time entry ${String(args.id)} on ${owner}/${repo}#${args.number}.`,
+          ? `Delete ALL of your tracked time on ${repo.fullName}#${args.number}.`
+          : `Delete tracked-time entry ${String(args.id)} on ${repo.fullName}#${args.number}.`,
       };
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const base = `${repoPath(owner, repo)}/issues/${args.number}/times`;
+      const repo = await ctx.repo(args);
+      const base = `${repo.api}/issues/${args.number}/times`;
       await ctx.client.request({ method: 'DELETE', path: args.all ? base : `${base}/${String(args.id)}` });
       return { deleted: args.all ? 'all' : args.id };
     },
@@ -198,8 +196,8 @@ export const timeTools: ToolDefinition[] = [
       action: z.enum(['start', 'stop', 'cancel']),
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const base = `${repoPath(owner, repo)}/issues/${args.number}/stopwatch`;
+      const repo = await ctx.repo(args);
+      const base = `${repo.api}/issues/${args.number}/stopwatch`;
       if (args.action === 'cancel') await ctx.client.request({ method: 'DELETE', path: `${base}/delete` });
       else await ctx.client.request({ method: 'POST', path: `${base}/${args.action}` });
       return {

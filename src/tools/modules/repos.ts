@@ -7,7 +7,6 @@ import {
   ownerSchema,
   pagingShape,
   profileShape,
-  repoPath,
   repoShape,
   requireSomeFields,
 } from '../common.js';
@@ -92,8 +91,8 @@ export const repoTools: ToolDefinition[] = [
     access: 'read',
     input: { ...profileShape, ...repoShape },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const base = repoPath(owner, repo);
+      const repo = await ctx.repo(args);
+      const base = repo.api;
       const [info, languages] = await Promise.all([
         ctx.client.request<Record<string, unknown>>({ path: base }),
         ctx.client.request<Record<string, number>>({ path: `${base}/languages` }).catch(() => undefined),
@@ -186,11 +185,11 @@ export const repoTools: ToolDefinition[] = [
       template: z.boolean().optional(),
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       const { profile: _p, owner: _o, repo: _r, ...fields } = args;
       const payload = body(fields);
       requireSomeFields(payload, 'the repository');
-      const res = await ctx.client.request({ method: 'PATCH', path: repoPath(owner, repo), body: payload });
+      const res = await ctx.client.request({ method: 'PATCH', path: repo.api, body: payload });
       return { updated: Object.keys(payload), repository: slimRepo(res.data) };
     },
   }),
@@ -207,19 +206,19 @@ export const repoTools: ToolDefinition[] = [
       private: z.boolean().describe('true = private, false = public'),
     },
     async confirm(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       return {
-        target: `${owner}/${repo}`,
+        target: repo.fullName,
         action: args.private
-          ? `Make repository ${owner}/${repo} PRIVATE.`
-          : `Make repository ${owner}/${repo} PUBLIC — its code, issues and history become visible to everyone.`,
+          ? `Make repository ${repo.fullName} PRIVATE.`
+          : `Make repository ${repo.fullName} PUBLIC — its code, issues and history become visible to everyone.`,
       };
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       const res = await ctx.client.request({
         method: 'PATCH',
-        path: repoPath(owner, repo),
+        path: repo.api,
         body: { private: args.private },
       });
       return { repository: slimRepo(res.data) };
@@ -238,19 +237,19 @@ export const repoTools: ToolDefinition[] = [
       archived: z.boolean().default(true).describe('true = archive, false = unarchive'),
     },
     async confirm(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       return {
-        target: `${owner}/${repo}`,
+        target: repo.fullName,
         action: args.archived
-          ? `Archive ${owner}/${repo}; it becomes read-only.`
-          : `Unarchive ${owner}/${repo}.`,
+          ? `Archive ${repo.fullName}; it becomes read-only.`
+          : `Unarchive ${repo.fullName}.`,
       };
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       const res = await ctx.client.request({
         method: 'PATCH',
-        path: repoPath(owner, repo),
+        path: repo.api,
         body: { archived: args.archived },
       });
       return { repository: slimRepo(res.data) };
@@ -265,16 +264,16 @@ export const repoTools: ToolDefinition[] = [
     access: 'destructive',
     input: { ...profileShape, ...repoShape },
     async confirm(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       return {
-        target: `${owner}/${repo}`,
-        action: `PERMANENTLY delete repository ${owner}/${repo} with all code, issues, pull requests, releases and wiki. This cannot be undone.`,
+        target: repo.fullName,
+        action: `PERMANENTLY delete repository ${repo.fullName} with all code, issues, pull requests, releases and wiki. This cannot be undone.`,
       };
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      await ctx.client.request({ method: 'DELETE', path: repoPath(owner, repo) });
-      return { deleted: `${owner}/${repo}` };
+      const repo = await ctx.repo(args);
+      await ctx.client.request({ method: 'DELETE', path: repo.api });
+      return { deleted: repo.fullName };
     },
   }),
   defineTool({
@@ -290,10 +289,10 @@ export const repoTools: ToolDefinition[] = [
       name: nameSchema('Fork').optional(),
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       const res = await ctx.client.request({
         method: 'POST',
-        path: `${repoPath(owner, repo)}/forks`,
+        path: `${repo.api}/forks`,
         body: body({ organization: args.organization, name: args.name }),
       });
       return { forked: true, repository: slimRepo(res.data) };
@@ -307,8 +306,8 @@ export const repoTools: ToolDefinition[] = [
     access: 'read',
     input: { ...profileShape, ...repoShape, ...pagingShape },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const res = await ctx.client.paginate(`${repoPath(owner, repo)}/forks`, {}, args);
+      const repo = await ctx.repo(args);
+      const res = await ctx.client.paginate(`${repo.api}/forks`, {}, args);
       return { total: res.totalCount, has_more: res.hasMore, forks: res.items.map(slimRepo) };
     },
   }),
@@ -328,10 +327,10 @@ export const repoTools: ToolDefinition[] = [
         .max(25),
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       await ctx.client.request({
         method: 'PUT',
-        path: `${repoPath(owner, repo)}/topics`,
+        path: `${repo.api}/topics`,
         body: { topics: args.topics },
       });
       return { topics: args.topics };

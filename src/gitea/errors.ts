@@ -148,3 +148,21 @@ export function toGiteaError(err: unknown): GiteaError {
   const message = err instanceof Error ? err.message : String(err);
   return new GiteaError('HTTP_ERROR', message);
 }
+
+/** True for a GiteaError with the given code. */
+export function isGiteaError(err: unknown, ...codes: GiteaErrorCode[]): err is GiteaError {
+  return err instanceof GiteaError && (codes.length === 0 || codes.includes(err.code));
+}
+
+/**
+ * Awaits `promise` and maps a NOT_FOUND error to `undefined`. Use it where "does not exist" is a
+ * normal answer (existence checks, optional resources); every other error is re-thrown.
+ */
+export async function ifFound<T>(promise: Promise<T>): Promise<T | undefined> {
+  try {
+    return await promise;
+  } catch (err) {
+    if (isGiteaError(err, 'NOT_FOUND')) return undefined;
+    throw err;
+  }
+}

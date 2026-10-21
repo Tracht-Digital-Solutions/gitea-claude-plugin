@@ -89,3 +89,26 @@ export function truncateText(text: string, maxChars: number): { text: string; tr
     truncated: true,
   };
 }
+
+/** Result of GiteaHttpClient.paginate. */
+export interface Page<T> {
+  items: T[];
+  totalCount: number | undefined;
+  hasMore: boolean;
+}
+
+/**
+ * Uniform shape of list results: `{ total, has_more, <key>: [...] }`. `total` is omitted when
+ * Gitea does not report it.
+ */
+export function listResult<T, K extends string>(
+  page: Page<T>,
+  key: K,
+  map: (item: T) => unknown,
+): { total?: number; has_more: boolean } & Record<K, unknown[]> {
+  const out: Record<string, unknown> = {};
+  if (page.totalCount !== undefined) out.total = page.totalCount;
+  out.has_more = page.hasMore;
+  out[key] = page.items.map(map);
+  return out as { total?: number; has_more: boolean } & Record<K, unknown[]>;
+}

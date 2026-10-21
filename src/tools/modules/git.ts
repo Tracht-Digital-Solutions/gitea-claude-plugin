@@ -10,7 +10,6 @@ import {
   pagingShape,
   profileShape,
   refSchema,
-  repoPath,
   repoShape,
   truncateText,
 } from '../common.js';
@@ -144,8 +143,8 @@ export const gitTools: ToolDefinition[] = [
     access: 'read',
     input: { ...profileShape, ...repoShape, ...pagingShape },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const res = await ctx.client.paginate(`${repoPath(owner, repo)}/branches`, {}, args);
+      const repo = await ctx.repo(args);
+      const res = await ctx.client.paginate(`${repo.api}/branches`, {}, args);
       return { total: res.totalCount, has_more: res.hasMore, branches: res.items.map(slimBranch) };
     },
   }),
@@ -157,9 +156,9 @@ export const gitTools: ToolDefinition[] = [
     access: 'read',
     input: { ...profileShape, ...repoShape, branch: branchName },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       const res = await ctx.client.request({
-        path: `${repoPath(owner, repo)}/branches/${encodeURIComponent(args.branch)}`,
+        path: `${repo.api}/branches/${encodeURIComponent(args.branch)}`,
       });
       return slimBranch(res.data);
     },
@@ -177,10 +176,10 @@ export const gitTools: ToolDefinition[] = [
       from: refSchema.optional().describe('Branch, tag or commit SHA to start from.'),
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       const res = await ctx.client.request({
         method: 'POST',
-        path: `${repoPath(owner, repo)}/branches`,
+        path: `${repo.api}/branches`,
         body: body({ new_branch_name: args.branch, old_ref_name: args.from }),
       });
       return { created: true, branch: slimBranch(res.data) };
@@ -195,17 +194,17 @@ export const gitTools: ToolDefinition[] = [
     access: 'destructive',
     input: { ...profileShape, ...repoShape, branch: branchName },
     async confirm(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       return {
-        target: `${owner}/${repo}@${args.branch}`,
-        action: `Delete branch "${args.branch}" in ${owner}/${repo}. Unmerged commits on it may be lost.`,
+        target: `${repo.fullName}@${args.branch}`,
+        action: `Delete branch "${args.branch}" in ${repo.fullName}. Unmerged commits on it may be lost.`,
       };
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       await ctx.client.request({
         method: 'DELETE',
-        path: `${repoPath(owner, repo)}/branches/${encodeURIComponent(args.branch)}`,
+        path: `${repo.api}/branches/${encodeURIComponent(args.branch)}`,
       });
       return { deleted: args.branch };
     },
@@ -228,10 +227,10 @@ export const gitTools: ToolDefinition[] = [
       max_diff_chars: z.number().int().min(1000).max(500_000).default(60_000),
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       const basehead = `${encodeURIComponent(args.base)}...${encodeURIComponent(args.head)}`;
       const res = await ctx.client.request<{ total_commits?: number; commits?: CommitWithFiles[] }>({
-        path: `${repoPath(owner, repo)}/compare/${basehead}`,
+        path: `${repo.api}/compare/${basehead}`,
       });
       const commits = res.data.commits ?? [];
       const files = new Map<string, string>();
@@ -248,8 +247,8 @@ export const gitTools: ToolDefinition[] = [
         const patches: string[] = [];
         for (const name of names) {
           const [a, b] = await Promise.all([
-            readTextFile(ctx, owner, repo, name, args.base).catch(() => undefined),
-            readTextFile(ctx, owner, repo, name, args.head).catch(() => undefined),
+            readTextFile(ctx, repo, name, args.base).catch(() => undefined),
+            readTextFile(ctx, repo, name, args.head).catch(() => undefined),
           ]);
           if (a === b) continue;
           patches.push(createTwoFilesPatch(`a/${name}`, `b/${name}`, a ?? '', b ?? '', args.base, args.head));
@@ -278,9 +277,9 @@ export const gitTools: ToolDefinition[] = [
       ...pagingShape,
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       const res = await ctx.client.paginate(
-        `${repoPath(owner, repo)}/commits`,
+        `${repo.api}/commits`,
         {
           sha: args.ref,
           path: args.path,
@@ -314,8 +313,8 @@ export const gitTools: ToolDefinition[] = [
       max_diff_chars: z.number().int().min(1000).max(500_000).default(60_000),
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const base = repoPath(owner, repo);
+      const repo = await ctx.repo(args);
+      const base = repo.api;
       const res = await ctx.client.request({
         path: `${base}/git/commits/${encodeURIComponent(args.sha)}`,
         query: { stat: true, files: true, verification: false },
@@ -349,9 +348,9 @@ export const gitTools: ToolDefinition[] = [
       max_commits: z.number().int().min(1).max(2000).default(300),
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       const res = await ctx.client.paginate<CommitLike>(
-        `${repoPath(owner, repo)}/commits`,
+        `${repo.api}/commits`,
         {
           sha: args.ref,
           since: args.since,
@@ -375,14 +374,14 @@ export const gitTools: ToolDefinition[] = [
     access: 'read',
     input: { ...profileShape, ...repoShape, ref: refSchema },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       const res = await ctx.client.request<{
         state: string;
         sha: string;
         total_count: number;
         statuses?: unknown[];
       }>({
-        path: `${repoPath(owner, repo)}/commits/${encodeURIComponent(args.ref)}/status`,
+        path: `${repo.api}/commits/${encodeURIComponent(args.ref)}/status`,
       });
       return {
         sha: res.data.sha,
@@ -409,8 +408,8 @@ export const gitTools: ToolDefinition[] = [
     access: 'read',
     input: { ...profileShape, ...repoShape, ...pagingShape },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const res = await ctx.client.paginate(`${repoPath(owner, repo)}/tags`, {}, args);
+      const repo = await ctx.repo(args);
+      const res = await ctx.client.paginate(`${repo.api}/tags`, {}, args);
       return { total: res.totalCount, has_more: res.hasMore, tags: res.items.map(slimTag) };
     },
   }),
@@ -422,9 +421,9 @@ export const gitTools: ToolDefinition[] = [
     access: 'read',
     input: { ...profileShape, ...repoShape, tag: tagName },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       const res = await ctx.client.request({
-        path: `${repoPath(owner, repo)}/tags/${encodeURIComponent(args.tag)}`,
+        path: `${repo.api}/tags/${encodeURIComponent(args.tag)}`,
       });
       return slimTag(res.data);
     },
@@ -443,10 +442,10 @@ export const gitTools: ToolDefinition[] = [
       message: z.string().max(10_000).optional().describe('Annotation message.'),
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       const res = await ctx.client.request({
         method: 'POST',
-        path: `${repoPath(owner, repo)}/tags`,
+        path: `${repo.api}/tags`,
         body: body({ tag_name: args.tag, target: args.target, message: args.message }),
       });
       return { created: true, tag: slimTag(res.data) };
@@ -460,17 +459,17 @@ export const gitTools: ToolDefinition[] = [
     access: 'destructive',
     input: { ...profileShape, ...repoShape, tag: tagName },
     async confirm(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       return {
-        target: `${owner}/${repo}@${args.tag}`,
-        action: `Delete tag "${args.tag}" in ${owner}/${repo}.`,
+        target: `${repo.fullName}@${args.tag}`,
+        action: `Delete tag "${args.tag}" in ${repo.fullName}.`,
       };
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       await ctx.client.request({
         method: 'DELETE',
-        path: `${repoPath(owner, repo)}/tags/${encodeURIComponent(args.tag)}`,
+        path: `${repo.api}/tags/${encodeURIComponent(args.tag)}`,
       });
       return { deleted: args.tag };
     },
@@ -483,9 +482,9 @@ export const gitTools: ToolDefinition[] = [
     access: 'read',
     input: { ...profileShape, ...repoShape },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       const res = await ctx.client.request<unknown[]>({
-        path: `${repoPath(owner, repo)}/branch_protections`,
+        path: `${repo.api}/branch_protections`,
       });
       return { rules: res.data.map(slimBranchProtection) };
     },
@@ -504,16 +503,16 @@ export const gitTools: ToolDefinition[] = [
       ...protectionFields,
     },
     async confirm(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       return {
-        target: `${owner}/${repo}@${args.rule_name}`,
-        action: `Create or change the branch protection rule "${args.rule_name}" in ${owner}/${repo}. This changes who may push and merge.`,
+        target: `${repo.fullName}@${args.rule_name}`,
+        action: `Create or change the branch protection rule "${args.rule_name}" in ${repo.fullName}. This changes who may push and merge.`,
       };
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       const { profile: _p, owner: _o, repo: _r, rule_name, ...fields } = args;
-      const base = `${repoPath(owner, repo)}/branch_protections`;
+      const base = `${repo.api}/branch_protections`;
       const exists = await ctx.client
         .request({ path: `${base}/${encodeURIComponent(rule_name)}` })
         .then(() => true)
@@ -539,17 +538,17 @@ export const gitTools: ToolDefinition[] = [
     access: 'admin',
     input: { ...profileShape, ...repoShape, rule_name: z.string().min(1).max(255) },
     async confirm(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       return {
-        target: `${owner}/${repo}@${args.rule_name}`,
-        action: `Remove the branch protection rule "${args.rule_name}" from ${owner}/${repo}; the branch becomes unprotected.`,
+        target: `${repo.fullName}@${args.rule_name}`,
+        action: `Remove the branch protection rule "${args.rule_name}" from ${repo.fullName}; the branch becomes unprotected.`,
       };
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       await ctx.client.request({
         method: 'DELETE',
-        path: `${repoPath(owner, repo)}/branch_protections/${encodeURIComponent(args.rule_name)}`,
+        path: `${repo.api}/branch_protections/${encodeURIComponent(args.rule_name)}`,
       });
       return { deleted: args.rule_name };
     },
@@ -563,8 +562,8 @@ export const gitTools: ToolDefinition[] = [
     feature: 'tag_protections',
     input: { ...profileShape, ...repoShape },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const res = await ctx.client.request<unknown[]>({ path: `${repoPath(owner, repo)}/tag_protections` });
+      const repo = await ctx.repo(args);
+      const res = await ctx.client.request<unknown[]>({ path: `${repo.api}/tag_protections` });
       return { rules: res.data.map(slimBranchProtection) };
     },
   }),
@@ -584,17 +583,17 @@ export const gitTools: ToolDefinition[] = [
       whitelist_teams: z.array(z.string()).optional(),
     },
     async confirm(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       return {
-        target: `${owner}/${repo}@${args.name_pattern}`,
-        action: `Protect tags matching "${args.name_pattern}" in ${owner}/${repo}.`,
+        target: `${repo.fullName}@${args.name_pattern}`,
+        action: `Protect tags matching "${args.name_pattern}" in ${repo.fullName}.`,
       };
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       const res = await ctx.client.request({
         method: 'POST',
-        path: `${repoPath(owner, repo)}/tag_protections`,
+        path: `${repo.api}/tag_protections`,
         body: body({
           name_pattern: args.name_pattern,
           whitelist_usernames: args.whitelist_usernames,
@@ -613,17 +612,17 @@ export const gitTools: ToolDefinition[] = [
     feature: 'tag_protections',
     input: { ...profileShape, ...repoShape, id: z.number().int().min(1) },
     async confirm(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       return {
-        target: `${owner}/${repo}#tag-protection-${args.id}`,
-        action: `Remove tag protection rule ${args.id} from ${owner}/${repo}.`,
+        target: `${repo.fullName}#tag-protection-${args.id}`,
+        action: `Remove tag protection rule ${args.id} from ${repo.fullName}.`,
       };
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       await ctx.client.request({
         method: 'DELETE',
-        path: `${repoPath(owner, repo)}/tag_protections/${args.id}`,
+        path: `${repo.api}/tag_protections/${args.id}`,
       });
       return { deleted: args.id };
     },
@@ -633,7 +632,7 @@ export const gitTools: ToolDefinition[] = [
     module: M,
     title: 'Inspect local git repository',
     description:
-      'Inspects the git repository in the current working directory: current branch, upstream, ahead/behind counts, uncommitted changes and which remote points to the configured Gitea server (owner/repo). Use it before creating a pull request from local changes.',
+      'Inspects the git repository in the current working directory: current branch, upstream, ahead/behind counts, uncommitted changes and which remote points to the configured Gitea server (repo.owner/repo.name). Use it before creating a pull request from local changes.',
     access: 'read',
     local: true,
     input: {
@@ -650,7 +649,7 @@ export const gitTools: ToolDefinition[] = [
       let note: string | undefined;
       if (!base) note = 'No Gitea server configured; remotes cannot be matched to Gitea repositories.';
       else if (!lc.remotes.some((r) => r.giteaRepo)) {
-        note = `No remote points to ${base.host}. Pass owner/repo explicitly to the Gitea tools.`;
+        note = `No remote points to ${base.host}. Pass repo.owner/repo.name explicitly to the Gitea tools.`;
       }
       return { ...lc, gitea_remote: lc.remotes.find((r) => r.giteaRepo)?.name, note };
     },

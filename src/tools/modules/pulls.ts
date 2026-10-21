@@ -8,16 +8,8 @@ import {
   slimReview,
   slimReviewComment,
 } from '../../gitea/models.js';
-import {
-  body,
-  indexSchema,
-  pagingShape,
-  profileShape,
-  repoPath,
-  repoShape,
-  requireSomeFields,
-} from '../common.js';
-import { defineTool, type ToolContext, type ToolDefinition } from '../types.js';
+import { body, indexSchema, pagingShape, profileShape, repoShape, requireSomeFields } from '../common.js';
+import { defineTool, type ToolContext, type RepoRef, type ToolDefinition } from '../types.js';
 import { formatDiff } from './git.js';
 import { resolveLabelIds, resolveMilestoneId } from './issues.js';
 
@@ -67,8 +59,8 @@ function globMatch(pattern: string, name: string): boolean {
  * Evaluates whether a pull request can be merged: state, conflicts, approvals and status checks
  * required by the branch protection of the base branch, and blocking reviews.
  */
-export async function mergeReadiness(ctx: ToolContext, owner: string, repo: string, index: number) {
-  const base = repoPath(owner, repo);
+export async function mergeReadiness(ctx: ToolContext, repo: RepoRef, index: number) {
+  const base = repo.api;
   const pr = (await ctx.client.request<RawPull>({ path: `${base}/pulls/${index}` })).data;
   const [reviews, status, protections] = await Promise.all([
     ctx.client.paginate<RawReview>(`${base}/pulls/${index}/reviews`, {}, { limit: 200 }).then((r) => r.items),
@@ -178,9 +170,9 @@ export const pullTools: ToolDefinition[] = [
       ...pagingShape,
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       const res = await ctx.client.paginate(
-        `${repoPath(owner, repo)}/pulls`,
+        `${repo.api}/pulls`,
         {
           state: args.state,
           base_branch: args.base_branch,
@@ -207,18 +199,18 @@ export const pullTools: ToolDefinition[] = [
       number: z.number().int().min(0).default(0).describe('Pull request number; 0 = latest'),
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       let number = args.number;
       if (number === 0) {
         const latest = await ctx.client.request<RawPull[]>({
-          path: `${repoPath(owner, repo)}/pulls`,
+          path: `${repo.api}/pulls`,
           query: { state: 'all', sort: 'recentupdate', limit: 1 },
         });
         const first = latest.data[0];
-        if (!first) throw new GiteaError('NOT_FOUND', `${owner}/${repo} has no pull requests.`);
+        if (!first) throw new GiteaError('NOT_FOUND', `${repo.fullName} has no pull requests.`);
         number = first.number;
       }
-      const res = await ctx.client.request({ path: `${repoPath(owner, repo)}/pulls/${number}` });
+      const res = await ctx.client.request({ path: `${repo.api}/pulls/${number}` });
       return slimPull(res.data, true);
     },
   }),
@@ -247,17 +239,17 @@ export const pullTools: ToolDefinition[] = [
       milestone: z.union([z.string(), z.number().int()]).optional(),
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       let baseBranch = args.base;
       if (!baseBranch) {
-        baseBranch = (await ctx.client.request<{ default_branch: string }>({ path: repoPath(owner, repo) }))
-          .data.default_branch;
+        baseBranch = (await ctx.client.request<{ default_branch: string }>({ path: repo.api })).data
+          .default_branch;
       }
       const title =
         args.draft && !/^(wip|\[wip\])[:\s]/i.test(args.title) ? `WIP: ${args.title}` : args.title;
       const res = await ctx.client.request({
         method: 'POST',
-        path: `${repoPath(owner, repo)}/pulls`,
+        path: `${repo.api}/pulls`,
         body: body({
           head: args.head,
           base: baseBranch,
@@ -266,8 +258,8 @@ export const pullTools: ToolDefinition[] = [
           assignees: args.assignees,
           reviewers: args.reviewers,
           team_reviewers: args.team_reviewers,
-          labels: args.labels ? await resolveLabelIds(ctx, owner, repo, args.labels) : undefined,
-          milestone: await resolveMilestoneId(ctx, owner, repo, args.milestone),
+          labels: args.labels ? await resolveLabelIds(ctx, repo, args.labels) : undefined,
+          milestone: await resolveMilestoneId(ctx, repo, args.milestone),
         }),
       });
       return { created: true, pull: slimPull(res.data) };
@@ -297,21 +289,21 @@ export const pullTools: ToolDefinition[] = [
       allow_maintainer_edit: z.boolean().optional(),
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       const payload = body({
         title: args.title,
         body: args.body,
         base: args.base,
         assignees: args.assignees,
-        labels: args.labels ? await resolveLabelIds(ctx, owner, repo, args.labels) : undefined,
-        milestone: await resolveMilestoneId(ctx, owner, repo, args.milestone),
+        labels: args.labels ? await resolveLabelIds(ctx, repo, args.labels) : undefined,
+        milestone: await resolveMilestoneId(ctx, repo, args.milestone),
         state: args.state,
         allow_maintainer_edit: args.allow_maintainer_edit,
       });
       requireSomeFields(payload, `pull request #${args.number}`);
       const res = await ctx.client.request({
         method: 'PATCH',
-        path: `${repoPath(owner, repo)}/pulls/${args.number}`,
+        path: `${repo.api}/pulls/${args.number}`,
         body: payload,
       });
       return { updated: Object.keys(payload), pull: slimPull(res.data) };
@@ -331,8 +323,8 @@ export const pullTools: ToolDefinition[] = [
       comment: z.string().max(65_535).optional(),
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const base = repoPath(owner, repo);
+      const repo = await ctx.repo(args);
+      const base = repo.api;
       if (args.comment) {
         await ctx.client.request({
           method: 'POST',
@@ -366,9 +358,9 @@ export const pullTools: ToolDefinition[] = [
       max_chars: z.number().int().min(1000).max(500_000).default(80_000),
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       const res = await ctx.client.request<string>({
-        path: `${repoPath(owner, repo)}/pulls/${args.number}.diff`,
+        path: `${repo.api}/pulls/${args.number}.diff`,
         responseType: 'text',
         maxBytes: 30 * 1024 * 1024,
       });
@@ -383,9 +375,9 @@ export const pullTools: ToolDefinition[] = [
     access: 'read',
     input: { ...profileShape, ...repoShape, number: indexSchema('pull request'), ...pagingShape },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       const res = await ctx.client.paginate<Record<string, unknown>>(
-        `${repoPath(owner, repo)}/pulls/${args.number}/files`,
+        `${repo.api}/pulls/${args.number}/files`,
         {},
         args,
       );
@@ -412,9 +404,9 @@ export const pullTools: ToolDefinition[] = [
     access: 'read',
     input: { ...profileShape, ...repoShape, number: indexSchema('pull request'), ...pagingShape },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       const res = await ctx.client.paginate(
-        `${repoPath(owner, repo)}/pulls/${args.number}/commits`,
+        `${repo.api}/pulls/${args.number}/commits`,
         { verification: false, files: false },
         args,
       );
@@ -435,8 +427,8 @@ export const pullTools: ToolDefinition[] = [
       include_comments: z.boolean().default(true),
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const base = `${repoPath(owner, repo)}/pulls/${args.number}/reviews`;
+      const repo = await ctx.repo(args);
+      const base = `${repo.api}/pulls/${args.number}/reviews`;
       const reviews = await ctx.client.paginate<{ id: number }>(base, {}, { limit: 200 });
       const out = [];
       for (const r of reviews.items) {
@@ -447,7 +439,7 @@ export const pullTools: ToolDefinition[] = [
         }
         out.push(item);
       }
-      const conversation = await ctx.client.list(`${repoPath(owner, repo)}/issues/${args.number}/comments`);
+      const conversation = await ctx.client.list(`${repo.api}/issues/${args.number}/comments`);
       return { reviews: out, conversation: conversation.slice(-100).map(slimComment) };
     },
   }),
@@ -483,7 +475,7 @@ export const pullTools: ToolDefinition[] = [
       commit_id: z.string().optional().describe('Commit the review refers to (default: head).'),
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       if (args.event === 'REQUEST_CHANGES' && !args.body) {
         throw new GiteaError('INVALID_INPUT', 'A body is required when requesting changes.');
       }
@@ -494,7 +486,7 @@ export const pullTools: ToolDefinition[] = [
       });
       const res = await ctx.client.request({
         method: 'POST',
-        path: `${repoPath(owner, repo)}/pulls/${args.number}/reviews`,
+        path: `${repo.api}/pulls/${args.number}/reviews`,
         body: body({ event: args.event, body: args.body, comments, commit_id: args.commit_id }),
       });
       return { created: true, review: slimReview(res.data) };
@@ -515,10 +507,10 @@ export const pullTools: ToolDefinition[] = [
       body: z.string().max(65_535).optional(),
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       const res = await ctx.client.request({
         method: 'POST',
-        path: `${repoPath(owner, repo)}/pulls/${args.number}/reviews/${args.review_id}`,
+        path: `${repo.api}/pulls/${args.number}/reviews/${args.review_id}`,
         body: body({ event: args.event, body: args.body }),
       });
       return { review: slimReview(res.data) };
@@ -539,13 +531,13 @@ export const pullTools: ToolDefinition[] = [
       remove: z.boolean().default(false).describe('Remove these review requests instead of adding them.'),
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       if (!args.reviewers?.length && !args.team_reviewers?.length) {
         throw new GiteaError('INVALID_INPUT', 'Provide reviewers or team_reviewers.');
       }
       await ctx.client.request({
         method: args.remove ? 'DELETE' : 'POST',
-        path: `${repoPath(owner, repo)}/pulls/${args.number}/requested_reviewers`,
+        path: `${repo.api}/pulls/${args.number}/requested_reviewers`,
         body: body({ reviewers: args.reviewers, team_reviewers: args.team_reviewers }),
       });
       return {
@@ -564,8 +556,8 @@ export const pullTools: ToolDefinition[] = [
     access: 'read',
     input: { ...profileShape, ...repoShape, number: indexSchema('pull request') },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      return mergeReadiness(ctx, owner, repo, args.number);
+      const repo = await ctx.repo(args);
+      return mergeReadiness(ctx, repo, args.number);
     },
   }),
   defineTool({
@@ -586,18 +578,16 @@ export const pullTools: ToolDefinition[] = [
       merge_when_checks_succeed: z.boolean().default(false).describe('Schedule auto-merge once checks pass.'),
     },
     async confirm(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const pr = (
-        await ctx.client.request<RawPull>({ path: `${repoPath(owner, repo)}/pulls/${args.number}` })
-      ).data;
+      const repo = await ctx.repo(args);
+      const pr = (await ctx.client.request<RawPull>({ path: `${repo.api}/pulls/${args.number}` })).data;
       return {
-        target: `${owner}/${repo}#${args.number}`,
-        action: `Merge pull request #${args.number} "${pr.title}" (${pr.head.ref} → ${pr.base.ref}) in ${owner}/${repo} using "${args.style}"${args.delete_branch_after_merge ? ' and delete the head branch' : ''}.`,
+        target: `${repo.fullName}#${args.number}`,
+        action: `Merge pull request #${args.number} "${pr.title}" (${pr.head.ref} → ${pr.base.ref}) in ${repo.fullName} using "${args.style}"${args.delete_branch_after_merge ? ' and delete the head branch' : ''}.`,
       };
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const readiness = await mergeReadiness(ctx, owner, repo, args.number);
+      const repo = await ctx.repo(args);
+      const readiness = await mergeReadiness(ctx, repo, args.number);
       if (!readiness.ready_to_merge && !args.merge_when_checks_succeed) {
         throw new GiteaError('CONFLICT', `Pull request #${args.number} is not ready to merge.`, {
           details: { blockers: readiness.blockers },
@@ -607,7 +597,7 @@ export const pullTools: ToolDefinition[] = [
       const head = (readiness.pull as { head_sha?: string }).head_sha;
       await ctx.client.request({
         method: 'POST',
-        path: `${repoPath(owner, repo)}/pulls/${args.number}/merge`,
+        path: `${repo.api}/pulls/${args.number}/merge`,
         body: body({
           // Field names as in the OpenAPI document; Gitea decodes JSON keys case-insensitively, so
           // older releases that declared "Do"/"MergeTitleField" accept them as well.
@@ -619,7 +609,7 @@ export const pullTools: ToolDefinition[] = [
           head_commit_id: head,
         }),
       });
-      const after = await ctx.client.request({ path: `${repoPath(owner, repo)}/pulls/${args.number}` });
+      const after = await ctx.client.request({ path: `${repo.api}/pulls/${args.number}` });
       return {
         merged: (after.data as { merged?: boolean }).merged ?? false,
         scheduled: args.merge_when_checks_succeed || undefined,
@@ -642,10 +632,10 @@ export const pullTools: ToolDefinition[] = [
       style: z.enum(['merge', 'rebase']).default('merge'),
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       await ctx.client.request({
         method: 'POST',
-        path: `${repoPath(owner, repo)}/pulls/${args.number}/update`,
+        path: `${repo.api}/pulls/${args.number}/update`,
         query: { style: args.style },
       });
       return { updated: true, number: args.number, style: args.style };

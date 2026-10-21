@@ -11,7 +11,7 @@ import {
   repoShape,
   requireSomeFields,
 } from '../common.js';
-import { defineTool, type ToolDefinition } from '../types.js';
+import { defineTool, type ToolContext, type ToolDefinition } from '../types.js';
 import { readTextFile } from './contents.js';
 
 const M = 'extended';
@@ -49,9 +49,13 @@ const hookScope = {
   org: ownerSchema.optional().describe('Manage organisation webhooks instead of repository webhooks.'),
 };
 
-function hookBase(args: { org?: string | undefined }, owner?: string, repo?: string): string {
+/** API path of the webhooks of the organisation (`org`) or of the repository. */
+async function hooksPath(
+  ctx: ToolContext,
+  args: { org?: string | undefined; owner?: string | undefined; repo?: string | undefined },
+): Promise<string> {
   if (args.org) return `/orgs/${encodeURIComponent(args.org)}/hooks`;
-  return `${repoPath(owner!, repo!)}/hooks`;
+  return `${(await ctx.repo(args)).api}/hooks`;
 }
 
 export const extendedTools: ToolDefinition[] = [
@@ -63,8 +67,7 @@ export const extendedTools: ToolDefinition[] = [
     access: 'read',
     input: { ...profileShape, ...repoShape, ...hookScope },
     async run(args, ctx) {
-      const ref = args.org ? undefined : await ctx.repo(args);
-      const res = await ctx.client.paginate(hookBase(args, ref?.owner, ref?.repo), {}, { limit: 200 });
+      const res = await ctx.client.paginate(await hooksPath(ctx, args), {}, { limit: 200 });
       return { webhooks: res.items.map(slimHook) };
     },
   }),
@@ -109,10 +112,9 @@ export const extendedTools: ToolDefinition[] = [
     },
     async run(args, ctx) {
       registerSecret(args.secret);
-      const ref = args.org ? undefined : await ctx.repo(args);
       const res = await ctx.client.request({
         method: 'POST',
-        path: hookBase(args, ref?.owner, ref?.repo),
+        path: await hooksPath(ctx, args),
         body: {
           type: args.type,
           active: args.active,
@@ -153,7 +155,6 @@ export const extendedTools: ToolDefinition[] = [
     },
     async run(args, ctx) {
       registerSecret(args.secret);
-      const ref = args.org ? undefined : await ctx.repo(args);
       const config = compact({ url: args.url, content_type: args.content_type, secret: args.secret });
       const payload = body({
         config: Object.keys(config).length ? config : undefined,
@@ -164,7 +165,7 @@ export const extendedTools: ToolDefinition[] = [
       requireSomeFields(payload, 'the webhook');
       const res = await ctx.client.request({
         method: 'PATCH',
-        path: `${hookBase(args, ref?.owner, ref?.repo)}/${args.id}`,
+        path: `${await hooksPath(ctx, args)}/${args.id}`,
         body: payload,
       });
       return { webhook: slimHook(res.data) };
@@ -182,10 +183,9 @@ export const extendedTools: ToolDefinition[] = [
       return { target: `${where}#hook-${args.id}`, action: `Delete webhook ${args.id} on ${where}.` };
     },
     async run(args, ctx) {
-      const ref = args.org ? undefined : await ctx.repo(args);
       await ctx.client.request({
         method: 'DELETE',
-        path: `${hookBase(args, ref?.owner, ref?.repo)}/${args.id}`,
+        path: `${await hooksPath(ctx, args)}/${args.id}`,
       });
       return { deleted: args.id };
     },
@@ -198,8 +198,8 @@ export const extendedTools: ToolDefinition[] = [
     access: 'write',
     input: { ...profileShape, ...repoShape, id: z.number().int().min(1) },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      await ctx.client.request({ method: 'POST', path: `${repoPath(owner, repo)}/hooks/${args.id}/tests` });
+      const repo = await ctx.repo(args);
+      await ctx.client.request({ method: 'POST', path: `${repo.api}/hooks/${args.id}/tests` });
       return { triggered: true, id: args.id };
     },
   }),
@@ -269,8 +269,8 @@ export const extendedTools: ToolDefinition[] = [
     access: 'read',
     input: { ...profileShape, ...repoShape },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const base = repoPath(owner, repo);
+      const repo = await ctx.repo(args);
+      const base = repo.api;
       const info = (await ctx.client.request<Record<string, unknown>>({ path: base })).data;
       const branch = typeof info.default_branch === 'string' ? info.default_branch : 'main';
       const soft = <T>(p: Promise<T>) => p.catch(() => undefined);
@@ -348,7 +348,7 @@ export const extendedTools: ToolDefinition[] = [
         suggestions.push('Add topics to make the repository discoverable.');
       const readme = files.readme
         ? await soft(
-            readTextFile(ctx, owner, repo, [...names].find((n) => /^readme/.test(n)) ?? 'README.md', branch),
+            readTextFile(ctx, repo, [...names].find((n) => /^readme/.test(n)) ?? 'README.md', branch),
           )
         : undefined;
       return {

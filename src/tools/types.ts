@@ -3,9 +3,14 @@ import type { AccessLevel, Profile, ServerConfig } from '../config/config.js';
 import type { Capabilities, Feature } from '../gitea/capabilities.js';
 import type { GiteaHttpClient } from '../gitea/http.js';
 
+/** A resolved repository. */
 export interface RepoRef {
   owner: string;
-  repo: string;
+  name: string;
+  /** `owner/name`, e.g. for messages and confirmation targets. */
+  fullName: string;
+  /** Encoded API base path `/repos/{owner}/{name}`. */
+  api: string;
 }
 
 export interface ConfirmRequest {

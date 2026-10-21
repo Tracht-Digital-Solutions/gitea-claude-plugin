@@ -7,7 +7,6 @@ import {
   indexSchema,
   ownerSchema,
   profileShape,
-  repoPath,
   repoShape,
   requireSomeFields,
 } from '../common.js';
@@ -49,7 +48,7 @@ const scopeShape = {
     .enum(['repo', 'org', 'user'])
     .default('repo')
     .describe(
-      'Where the project lives: a repository (owner/repo), an organisation (org) or your user account.',
+      'Where the project lives: a repository (repo.owner/repo.name), an organisation (org) or your user account.',
     ),
   org: ownerSchema.optional().describe('Organisation for scope "org".'),
 };
@@ -73,8 +72,8 @@ async function projectsBase(ctx: ToolContext, args: ScopeArgs): Promise<string> 
     if (!args.org) throw new GiteaError('INVALID_INPUT', 'org is required for scope "org".');
     return `/orgs/${encodeURIComponent(args.org)}/projects`;
   }
-  const { owner, repo } = await ctx.repo(args);
-  return `${repoPath(owner, repo)}/projects`;
+  const repo = await ctx.repo(args);
+  return `${repo.api}/projects`;
 }
 
 function slimProject(p: RawProject) {
@@ -156,11 +155,11 @@ async function issueIds(
   args: { owner?: string | undefined; repo?: string | undefined },
   numbers: number[],
 ) {
-  const { owner, repo } = await ctx.repo(args);
+  const repo = await ctx.repo(args);
   const out: { number: number; id: number; title: string }[] = [];
   for (const n of numbers) {
     const res = await ctx.client.request<{ id: number; number: number; title: string }>({
-      path: `${repoPath(owner, repo)}/issues/${n}`,
+      path: `${repo.api}/issues/${n}`,
     });
     out.push({ number: res.data.number, id: res.data.id, title: res.data.title });
   }
@@ -449,7 +448,7 @@ export const projectTools: ToolDefinition[] = [
     module: M,
     title: 'Add issues to project',
     description:
-      'Adds issues or pull requests (by number, from owner/repo) to a project board column (title or id; default column if omitted).',
+      'Adds issues or pull requests (by number, from repo.owner/repo.name) to a project board column (title or id; default column if omitted).',
     access: 'write',
     feature: 'projects',
     input: {

@@ -1,7 +1,7 @@
 import * as z from 'zod/v4';
 import { GiteaError } from '../../gitea/errors.js';
 import { compact } from '../../gitea/models.js';
-import { profileShape, repoPath, repoShape, truncateText } from '../common.js';
+import { profileShape, repoShape, truncateText } from '../common.js';
 import { defineTool, type ToolContext, type ToolDefinition } from '../types.js';
 
 const M = 'wiki';
@@ -60,12 +60,8 @@ export const wikiTools: ToolDefinition[] = [
     feature: 'wiki',
     input: { ...profileShape, ...repoShape },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const res = await ctx.client.paginate<RawPage>(
-        `${repoPath(owner, repo)}/wiki/pages`,
-        {},
-        { limit: 1000 },
-      );
+      const repo = await ctx.repo(args);
+      const res = await ctx.client.paginate<RawPage>(`${repo.api}/wiki/pages`, {}, { limit: 1000 });
       return { pages: res.items.map(slimMeta) };
     },
   }),
@@ -84,8 +80,8 @@ export const wikiTools: ToolDefinition[] = [
       max_chars: z.number().int().min(100).max(500_000).default(100_000),
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const base = `${repoPath(owner, repo)}/wiki`;
+      const repo = await ctx.repo(args);
+      const base = `${repo.api}/wiki`;
       const name = await resolvePage(ctx, base, args.page);
       const res = await ctx.client.request<RawPage>({ path: `${base}/page/${encodeURIComponent(name)}` });
       const t = truncateText(
@@ -135,20 +131,20 @@ export const wikiTools: ToolDefinition[] = [
       message: z.string().max(1000).optional().describe('Commit message'),
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       const res = await ctx.client
         .request<RawPage>({
           method: 'POST',
-          path: `${repoPath(owner, repo)}/wiki/new`,
+          path: `${repo.api}/wiki/new`,
           body: compact({ title: args.title, content_base64: b64(args.content), message: args.message }),
         })
         .catch(async (err: unknown) => {
           if (err instanceof GiteaError && err.code === 'NOT_FOUND') {
             const info = await ctx.client
-              .request<{ has_wiki?: boolean }>({ path: repoPath(owner, repo) })
+              .request<{ has_wiki?: boolean }>({ path: repo.api })
               .catch(() => undefined);
             if (info?.data.has_wiki === false) {
-              throw new GiteaError('UNSUPPORTED', `The wiki of ${owner}/${repo} is disabled.`, {
+              throw new GiteaError('UNSUPPORTED', `The wiki of ${repo.fullName} is disabled.`, {
                 hint: 'Enable it with repo_update (has_wiki: true), then create the page again.',
               });
             }
@@ -177,11 +173,11 @@ export const wikiTools: ToolDefinition[] = [
       message: z.string().max(1000).optional(),
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       if (args.content === undefined && !args.new_title) {
         throw new GiteaError('INVALID_INPUT', 'Provide content and/or new_title.');
       }
-      const base = `${repoPath(owner, repo)}/wiki`;
+      const base = `${repo.api}/wiki`;
       const name = await resolvePage(ctx, base, args.page);
       let content = args.content;
       let title = args.new_title;
@@ -209,15 +205,15 @@ export const wikiTools: ToolDefinition[] = [
     feature: 'wiki',
     input: { ...profileShape, ...repoShape, page: pageInput },
     async confirm(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       return {
-        target: `${owner}/${repo}/wiki/${args.page}`,
-        action: `Delete wiki page "${args.page}" of ${owner}/${repo}.`,
+        target: `${repo.fullName}/wiki/${args.page}`,
+        action: `Delete wiki page "${args.page}" of ${repo.fullName}.`,
       };
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const base = `${repoPath(owner, repo)}/wiki`;
+      const repo = await ctx.repo(args);
+      const base = `${repo.api}/wiki`;
       const name = await resolvePage(ctx, base, args.page);
       await ctx.client.request({ method: 'DELETE', path: `${base}/page/${encodeURIComponent(name)}` });
       return { deleted: name };
