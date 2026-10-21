@@ -1,0 +1,235 @@
+name: Release
+
+# Release flow
+#  1. Release Please maintains a release pull request (version bump in package.json, lock file and
+#     plugin.json, CHANGELOG). Pull requests created with GITHUB_TOKEN do not trigger other
+#     workflows, so this workflow starts CI on the release branch explicitly via workflow_dispatch
+#     (which GITHUB_TOKEN may trigger); its "CI passed" check gates the merge.
+#  2. Merging the release pull request makes Release Please create the tag and a *draft* release.
+#  3. Everything else runs inside this workflow (no tag/release event chaining): the full CI suite
+#     runs against the tag, then the plugin is built and packaged reproducibly, assets, checksums
+#     and SBOM are attached, the `stable` branch served by the marketplace is updated to
+#     tag + build, the release is published, and the published plugin is installed and verified.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Re-run publishing for an existing draft release (e.g. v0.1.0)
+        required: false
+        type: string
+
+permissions: {}
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    name: Release Please
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event_name == 'push'
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write
+    outputs:
+      release_created: ${{ steps.rp.outputs.release_created }}
+      tag_name: ${{ steps.rp.outputs.tag_name }}
+    steps:
+      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        id: rp
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+      - name: Run CI on the release pull request
+        if: steps.rp.outputs.prs_created == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_JSON: ${{ steps.rp.outputs.pr }}
+          REPO: ${{ github.repository }}
+        run: |
+          branch="$(jq -r '.headBranchName' <<< "${PR_JSON}")"
+          echo "Dispatching CI for ${branch}"
+          gh workflow run ci.yml --repo "${REPO}" --ref "${branch}"
+
+  resolve:
+    name: Resolve release
+    needs: [release-please]
+    if: >-
+      always() &&
+      (needs.release-please.outputs.release_created == 'true' ||
+       (github.event_name == 'workflow_dispatch' && inputs.tag != ''))
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      tag: ${{ steps.r.outputs.tag }}
+      version: ${{ steps.r.outputs.version }}
+    steps:
+      - id: r
+        env:
+          RP_TAG: ${{ needs.release-please.outputs.tag_name }}
+          INPUT_TAG: ${{ inputs.tag }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          tag="${RP_TAG:-${INPUT_TAG}}"
+          if ! [[ "${tag}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "Invalid tag: ${tag}"; exit 1
+          fi
+          draft="$(gh release view "${tag}" --repo "${REPO}" --json isDraft --jq .isDraft)"
+          if [[ "${draft}" != "true" ]]; then
+            echo "Release ${tag} is not a draft; refusing to publish it twice."; exit 1
+          fi
+          echo "tag=${tag}" >> "${GITHUB_OUTPUT}"
+          echo "version=${tag#v}" >> "${GITHUB_OUTPUT}"
+
+  verify:
+    name: Verify tagged commit
+    needs: [resolve]
+    permissions:
+      contents: read
+      actions: read
+    uses: ./.github/workflows/ci.yml # zizmor: ignore[self-repository] -- the "./" form is the documented syntax for local reusable workflows
+    with:
+      ref: ${{ needs.resolve.outputs.tag }}
+
+  publish:
+    name: Build, package and publish
+    needs: [resolve, verify]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    env:
+      TAG: ${{ needs.resolve.outputs.tag }}
+      VERSION: ${{ needs.resolve.outputs.version }}
+      REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.resolve.outputs.tag }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - run: npm ci
+      - name: Check version consistency
+        run: |
+          test "$(jq -r .version package.json)" = "${VERSION}"
+          test "$(jq -r .version plugin/.claude-plugin/plugin.json)" = "${VERSION}"
+          test "$(jq -r '.["."]' .release-please-manifest.json)" = "${VERSION}"
+          test "$(git rev-parse HEAD)" = "$(git rev-list -n 1 "${TAG}")"
+      - name: Build
+        run: npm run build
+      - name: Package plugin, source archive, SBOM and checksums
+        run: |
+          mkdir -p release
+          git archive --format=tar.gz --prefix="claude-code-gitea-${VERSION}/" \
+            -o "release/claude-code-gitea-${VERSION}-source.tar.gz" "${TAG}"
+          npm sbom --omit dev --sbom-format cyclonedx > "release/claude-code-gitea-${VERSION}.cdx.json"
+          node scripts/package-plugin.mjs release
+          ls -l release
+      - name: Smoke test the packaged plugin
+        run: |
+          mkdir -p pkg && unzip -q "release/gitea-plugin-${VERSION}.zip" -d pkg
+          npm run smoke -- pkg/gitea/dist/server.mjs
+      - name: Attach assets to the draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${TAG}" release/* --repo "${REPO}" --clobber
+      - name: Update the stable branch (tag + built bundle)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -C stable
+          git add --force plugin/dist/server.mjs
+          git commit -m "chore(release): build ${TAG}" -m "Tag ${TAG} ($(git rev-parse --short "${TAG}")) plus the bundled MCP server."
+          auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 -w0)"
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic ${auth}" \
+            push --force "https://github.com/${REPO}.git" HEAD:refs/heads/stable
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          prerelease="false"
+          [[ "${VERSION}" == *-* ]] && prerelease="true"
+          gh release edit "${TAG}" --repo "${REPO}" --draft=false --prerelease="${prerelease}" --latest="$([[ ${prerelease} == true ]] && echo false || echo true)"
+          gh release view "${TAG}" --repo "${REPO}"
+
+  verify-install:
+    name: Install published plugin from the marketplace
+    needs: [resolve, publish]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    env:
+      TAG: ${{ needs.resolve.outputs.tag }}
+      VERSION: ${{ needs.resolve.outputs.version }}
+      REPO: ${{ github.repository }}
+      CLAUDE_CODE_PLUGIN_PREFER_HTTPS: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.resolve.outputs.tag }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - run: npm ci
+      - name: Install Claude Code CLI (pinned in ci-tools/package-lock.json)
+        run: |
+          npm ci --prefix ci-tools
+          echo "${GITHUB_WORKSPACE}/ci-tools/node_modules/.bin" >> "${GITHUB_PATH}"
+      - name: Start a throwaway Gitea
+        env:
+          GITEA_TEST_RUNNER: '0'
+        run: npm run gitea:up
+      - name: Add marketplace and install the plugin
+        run: |
+          token="$(jq -r .token .gitea-test/env.json)"
+          echo "::add-mask::${token}"
+          claude plugin marketplace add "${REPO}"
+          claude plugin install gitea@jtracht-gitea \
+            --config "gitea_url=$(jq -r .url .gitea-test/env.json)" \
+            --config "gitea_token=${token}" \
+            --config allow_insecure_http=true
+          claude plugin list
+      - name: Installed version matches the release
+        run: |
+          claude plugin list --json | tee plugins.json
+          jq -e --arg v "${VERSION}" '[.. | objects | select(.version? == $v)] | length > 0' plugins.json
+      - name: Installed files match the release archive
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download "${TAG}" --repo "${REPO}" --pattern "gitea-plugin-${VERSION}.zip" --pattern SHA256SUMS --dir dl
+          (cd dl && sha256sum --check --ignore-missing SHA256SUMS)
+          unzip -q "dl/gitea-plugin-${VERSION}.zip" -d dl/pkg
+          server="$(find ~/.claude/plugins -path '*/dist/server.mjs' -print -quit)"
+          installed="$(dirname "$(dirname "${server}")")"
+          echo "installed at ${installed}"
+          diff -r --exclude=.git --exclude=.orphaned_at "dl/pkg/gitea" "${installed}"
+      - name: MCP server of the installed plugin connects to Gitea
+        run: |
+          installed="$(find ~/.claude/plugins -path '*/dist/server.mjs' -print -quit)"
+          GITEA_URL="$(jq -r .url .gitea-test/env.json)"
+          GITEA_TOKEN="$(jq -r .token .gitea-test/env.json)"
+          export GITEA_URL GITEA_TOKEN
+          echo "::add-mask::${GITEA_TOKEN}"
+          GITEA_ALLOW_HTTP=true node scripts/smoke-mcp.mjs "${installed}"
+      - name: Stop test environment
+        if: always()
+        run: npm run gitea:down

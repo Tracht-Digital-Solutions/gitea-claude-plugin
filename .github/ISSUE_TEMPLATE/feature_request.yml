@@ -1,0 +1,15 @@
+name: Feature request
+description: Suggest a new tool, skill or improvement
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What would you like to do with Gitea from Claude Code?
+    validations:
+      required: true
+  - type: textarea
+    id: api
+    attributes:
+      label: Gitea API endpoints involved (if known)
+      description: Link to the endpoint in your instance's /api/swagger
