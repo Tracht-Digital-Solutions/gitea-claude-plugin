@@ -10,6 +10,7 @@ import { slimHook, slimPull, slimRepo } from '../../src/gitea/models.js';
 import { analyzeLog } from '../../src/tools/modules/actions.js';
 import { analyzeCommits, commitType, formatDiff, splitDiff } from '../../src/tools/modules/git.js';
 import { priorityOf, summarizeIssues } from '../../src/tools/modules/issues.js';
+import { reorder } from '../../src/tools/modules/projects.js';
 import { buildReleaseNotes, isPrereleaseTag } from '../../src/tools/modules/releases.js';
 
 const swagger: unknown = JSON.parse(readFileSync('test/fixtures/gitea-swagger.v1.json', 'utf8'));
@@ -224,5 +225,15 @@ describe('models', () => {
       user: { login: 'u' },
     });
     expect(pr).toMatchObject({ number: 3, head: 'f', base: 'main', head_repo: 'x/y', author: 'u' });
+  });
+});
+
+describe('project column order', () => {
+  it('moves a column to a 1-based position and clamps out-of-range positions', () => {
+    expect(reorder([1, 2, 3, 4], 4, 3)).toEqual([1, 2, 4, 3]);
+    expect(reorder([1, 2, 3, 4], 1, 4)).toEqual([2, 3, 4, 1]);
+    expect(reorder([1, 2, 3, 4], 3, 1)).toEqual([3, 1, 2, 4]);
+    expect(reorder([1, 2, 3], 2, 99)).toEqual([1, 3, 2]);
+    expect(reorder([1, 2, 3], 2, 0)).toEqual([2, 1, 3]);
   });
 });
