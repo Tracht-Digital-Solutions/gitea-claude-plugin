@@ -33,11 +33,13 @@ visibility and permission changes need a confirmation for every single call.
 
 ## Recommended token scopes
 
-| Use case                            | Scopes                                                                                    |
-| ----------------------------------- | ----------------------------------------------------------------------------------------- |
-| Read-only (browse, analyse, review) | `read:repository`, `read:issue`, `read:user`, `read:organization`, `read:notification`    |
-| Everyday development                | `write:repository`, `write:issue`, `read:user`, `read:organization`, `write:notification` |
-| Organisation administration         | additionally `write:organization`                                                         |
+| Use case                            | Scopes                                                                                     |
+| ----------------------------------- | ------------------------------------------------------------------------------------------ |
+| Read-only (browse, analyse, review) | `read:repository`, `read:issue`, `read:user`, `read:organization`, `read:notification`     |
+| Everyday development                | `write:repository`, `write:issue`, `write:user`, `read:organization`, `write:notification` |
+| Organisation administration         | additionally `write:organization` (also needed to create repositories in an organisation)  |
+
+Gitea assigns creating a repository under your own account to the **user** scope (`write:user`), and creating one in an organisation to `write:organization`; `write:repository` alone is not enough for that.
 
 `connection_test` probes the read scopes without side effects. Missing write scopes are reported
 with a hint when a write tool is used.

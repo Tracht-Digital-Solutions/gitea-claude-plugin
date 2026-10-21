@@ -46,7 +46,7 @@ Ohne SSH-Schlüssel für GitHub vorher `CLAUDE_CODE_PLUGIN_PREFER_HTTPS=1` setze
 
 ## Verbindung zur eigenen Gitea-Instanz
 
-1. In Gitea **Einstellungen → Anwendungen → Zugriffstoken verwalten** öffnen und ein Token erzeugen. Empfohlene Berechtigungen für die tägliche Arbeit: `write:repository`, `write:issue`, `read:user`, `read:organization`, `write:notification` (nur lesend: die jeweiligen `read:`-Varianten).
+1. In Gitea **Einstellungen → Anwendungen → Zugriffstoken verwalten** öffnen und ein Token erzeugen. Empfohlene Berechtigungen für die tägliche Arbeit: `write:repository`, `write:issue`, `write:user`, `read:organization`, `write:notification` (nur lesend: die jeweiligen `read:`-Varianten).
 2. In Claude Code `/plugin` → **gitea** → **Configure** öffnen und eintragen:
    - **Gitea server URL**: z. B. `https://git.tracht-digital.de`
    - **Gitea API token**: das erzeugte Token – es wird im Schlüsselbund bzw. der Anmeldeinformationsverwaltung des Betriebssystems gespeichert, nicht in `settings.json`
