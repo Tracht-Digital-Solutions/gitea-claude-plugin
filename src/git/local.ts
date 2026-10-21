@@ -48,7 +48,10 @@ export function runGit(args: string[], cwd: string, timeoutMs = GIT_TIMEOUT_MS):
   });
 }
 
-/** Branch-name rules of `git check-ref-format --branch`, enforced without invoking a shell. */
+/**
+ * Branch-name rules of `git check-ref-format --branch`, enforced without invoking a shell. As
+ * defence in depth, shell metacharacters are rejected too even though no shell is involved.
+ */
 export function assertBranchName(name: string): void {
   const invalid =
     !name ||
@@ -64,6 +67,7 @@ export function assertBranchName(name: string): void {
     name === '@' ||
     // eslint-disable-next-line no-control-regex
     /[\u0000- \u007f~^:?*[\\]/.test(name) ||
+    /[$`;&|<>()'"!{}]/.test(name) ||
     name.split('/').some((part) => part.startsWith('.'));
   if (invalid) throw new GiteaError('INVALID_INPUT', `Invalid branch name: "${name}"`);
 }
