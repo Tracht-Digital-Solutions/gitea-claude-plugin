@@ -55056,6 +55056,7 @@ var FEATURE_ENDPOINTS = {
   compare: "GET /repos/{owner}/{repo}/compare/{basehead}",
   pr_update_branch: "POST /repos/{owner}/{repo}/pulls/{index}/update",
   notifications: "GET /notifications",
+  projects: "GET /repos/{owner}/{repo}/projects",
   repo_archive_download: "GET /repos/{owner}/{repo}/archive/{archive}"
 };
 function parseVersion(version2) {
@@ -59576,8 +59577,396 @@ var orgTools = [
   })
 ];
 
+// src/tools/modules/projects.ts
+var M7 = "projects";
+var scopeShape = {
+  scope: _enum(["repo", "org", "user"]).default("repo").describe(
+    "Where the project lives: a repository (owner/repo), an organisation (org) or your user account."
+  ),
+  org: ownerSchema.optional().describe('Organisation for scope "org".')
+};
+var projectId = number2().int().min(1).describe("Project id (see project_list)");
+var columnRef = union([string2().min(1).max(255), number2().int().min(1)]).describe("Column title or id");
+async function projectsBase(ctx, args) {
+  if (args.scope === "user") return "/user/projects";
+  if (args.scope === "org") {
+    if (!args.org) throw new GiteaError("INVALID_INPUT", 'org is required for scope "org".');
+    return `/orgs/${encodeURIComponent(args.org)}/projects`;
+  }
+  const { owner, repo } = await ctx.repo(args);
+  return `${repoPath(owner, repo)}/projects`;
+}
+function slimProject(p) {
+  return compact({
+    id: p.id,
+    title: p.title,
+    description: p.description,
+    state: p.state ?? (p.is_closed ? "closed" : "open"),
+    open_issues: p.num_open_issues,
+    closed_issues: p.num_closed_issues,
+    template: p.template_type,
+    card_type: p.card_type,
+    html_url: p.html_url,
+    created_at: p.created_at,
+    updated_at: p.updated_at
+  });
+}
+var slimColumn = (c) => compact({ id: c.id, title: c.title, color: c.color, default: c.default || void 0, sorting: c.sorting });
+async function columns(ctx, base, id) {
+  const res = await ctx.client.paginate(`${base}/${id}/columns`, {}, { limit: 200 });
+  return res.items.sort((a, b) => (a.sorting ?? 0) - (b.sorting ?? 0));
+}
+async function resolveColumn(ctx, base, id, ref) {
+  const all = await columns(ctx, base, id);
+  const found = ref === void 0 ? all.find((c) => c.default) ?? all[0] : typeof ref === "number" ? all.find((c) => c.id === ref) : all.find((c) => c.title.toLowerCase() === ref.toLowerCase());
+  if (!found) {
+    throw new GiteaError(
+      "INVALID_INPUT",
+      `Column "${String(ref ?? "(default)")}" does not exist in project ${id}.`,
+      {
+        hint: `Columns: ${all.map((c) => c.title).join(", ") || "(none) \u2014 create one with project_column_create"}`
+      }
+    );
+  }
+  return found;
+}
+async function issueIds(ctx, args, numbers) {
+  const { owner, repo } = await ctx.repo(args);
+  const out = [];
+  for (const n of numbers) {
+    const res = await ctx.client.request({
+      path: `${repoPath(owner, repo)}/issues/${n}`
+    });
+    out.push({ number: res.data.number, id: res.data.id, title: res.data.title });
+  }
+  return out;
+}
+var issueNumbers = array(indexSchema("issue or pull request")).min(1).max(100);
+var projectTools = [
+  defineTool({
+    name: "project_list",
+    module: M7,
+    title: "List projects",
+    description: "Lists the projects (kanban boards) of a repository, an organisation or your user account, with issue counts.",
+    access: "read",
+    feature: "projects",
+    input: {
+      ...profileShape,
+      ...repoShape,
+      ...scopeShape,
+      state: _enum(["open", "closed", "all"]).default("open")
+    },
+    async run(args, ctx) {
+      const base = await projectsBase(ctx, args);
+      const res = await ctx.client.paginate(base, { state: args.state }, { limit: 100 });
+      return { scope: args.scope, projects: res.items.map(slimProject) };
+    }
+  }),
+  defineTool({
+    name: "project_get",
+    module: M7,
+    title: "Show project board",
+    description: 'Shows a project board: its columns in order and the issues and pull requests in each column. Use it to answer "what is in progress / what is left".',
+    access: "read",
+    feature: "projects",
+    input: {
+      ...profileShape,
+      ...repoShape,
+      ...scopeShape,
+      id: projectId,
+      max_issues_per_column: number2().int().min(1).max(500).default(100)
+    },
+    async run(args, ctx) {
+      const base = await projectsBase(ctx, args);
+      const project = (await ctx.client.request({ path: `${base}/${args.id}` })).data;
+      const cols = await columns(ctx, base, args.id);
+      const board = [];
+      for (const c of cols) {
+        const issues = await ctx.client.paginate(
+          `${base}/${args.id}/columns/${c.id}/issues`,
+          {},
+          { limit: args.max_issues_per_column }
+        );
+        board.push({
+          ...slimColumn(c),
+          count: issues.totalCount ?? issues.items.length,
+          issues: issues.items.map((i) => slimIssue(i))
+        });
+      }
+      return { ...slimProject(project), columns: board };
+    }
+  }),
+  defineTool({
+    name: "project_create",
+    module: M7,
+    title: "Create project",
+    description: 'Creates a project (kanban board) in a repository, an organisation or your user account. Use a template ("basic_kanban": To Do / In Progress / Done, "bug_triage") or pass your own column titles.',
+    access: "write",
+    feature: "projects",
+    input: {
+      ...profileShape,
+      ...repoShape,
+      ...scopeShape,
+      title: string2().min(1).max(255),
+      description: string2().max(65535).optional(),
+      template: _enum(["none", "basic_kanban", "bug_triage"]).default("none"),
+      card_type: _enum(["text_only", "images_and_text"]).optional(),
+      columns: array(string2().min(1).max(255)).max(20).optional().describe("Column titles to create, in order.")
+    },
+    async run(args, ctx) {
+      const base = await projectsBase(ctx, args);
+      const res = await ctx.client.request({
+        method: "POST",
+        path: base,
+        body: body({
+          title: args.title,
+          description: args.description,
+          template_type: args.template,
+          card_type: args.card_type
+        })
+      });
+      const created = [];
+      for (const title of args.columns ?? []) {
+        const c = await ctx.client.request({
+          method: "POST",
+          path: `${base}/${res.data.id}/columns`,
+          body: { title }
+        });
+        created.push(c.data);
+      }
+      const cols = await columns(ctx, base, res.data.id);
+      return { created: true, project: slimProject(res.data), columns: cols.map(slimColumn) };
+    }
+  }),
+  defineTool({
+    name: "project_update",
+    module: M7,
+    title: "Edit or close project",
+    description: "Renames a project, changes its description or card type, or closes/reopens it.",
+    access: "write",
+    feature: "projects",
+    input: {
+      ...profileShape,
+      ...repoShape,
+      ...scopeShape,
+      id: projectId,
+      title: string2().min(1).max(255).optional(),
+      description: string2().max(65535).optional(),
+      state: _enum(["open", "closed"]).optional(),
+      card_type: _enum(["text_only", "images_and_text"]).optional()
+    },
+    async run(args, ctx) {
+      const base = await projectsBase(ctx, args);
+      const payload = body({
+        title: args.title,
+        description: args.description,
+        state: args.state,
+        card_type: args.card_type
+      });
+      requireSomeFields(payload, "the project");
+      const res = await ctx.client.request({
+        method: "PATCH",
+        path: `${base}/${args.id}`,
+        body: payload
+      });
+      return { updated: Object.keys(payload), project: slimProject(res.data) };
+    }
+  }),
+  defineTool({
+    name: "project_delete",
+    module: M7,
+    title: "Delete project",
+    description: "Deletes a project board (the issues themselves stay). Requires confirmation.",
+    access: "destructive",
+    feature: "projects",
+    input: { ...profileShape, ...repoShape, ...scopeShape, id: projectId },
+    async confirm(args, ctx) {
+      const base = await projectsBase(ctx, args);
+      const p = (await ctx.client.request({ path: `${base}/${args.id}` })).data;
+      return {
+        target: `project-${args.id}`,
+        action: `Delete the project board "${p.title}" (issues are kept).`
+      };
+    },
+    async run(args, ctx) {
+      const base = await projectsBase(ctx, args);
+      await ctx.client.request({ method: "DELETE", path: `${base}/${args.id}` });
+      return { deleted: args.id };
+    }
+  }),
+  defineTool({
+    name: "project_column_create",
+    module: M7,
+    title: "Add project column",
+    description: "Adds a column to a project board, optionally with a colour.",
+    access: "write",
+    feature: "projects",
+    input: {
+      ...profileShape,
+      ...repoShape,
+      ...scopeShape,
+      id: projectId,
+      title: string2().min(1).max(255),
+      color: colorSchema.optional()
+    },
+    async run(args, ctx) {
+      const base = await projectsBase(ctx, args);
+      const res = await ctx.client.request({
+        method: "POST",
+        path: `${base}/${args.id}/columns`,
+        body: body({ title: args.title, color: args.color })
+      });
+      return { created: true, column: slimColumn(res.data) };
+    }
+  }),
+  defineTool({
+    name: "project_column_update",
+    module: M7,
+    title: "Edit project column",
+    description: "Renames or recolours a column, or makes it the default column for new cards.",
+    access: "write",
+    feature: "projects",
+    input: {
+      ...profileShape,
+      ...repoShape,
+      ...scopeShape,
+      id: projectId,
+      column: columnRef,
+      title: string2().min(1).max(255).optional(),
+      color: colorSchema.optional(),
+      make_default: boolean2().optional()
+    },
+    async run(args, ctx) {
+      const base = await projectsBase(ctx, args);
+      const col = await resolveColumn(ctx, base, args.id, args.column);
+      const payload = body({ title: args.title, color: args.color });
+      if (Object.keys(payload).length === 0 && !args.make_default) requireSomeFields(payload, "the column");
+      let result = col;
+      if (Object.keys(payload).length) {
+        result = (await ctx.client.request({
+          method: "PATCH",
+          path: `${base}/${args.id}/columns/${col.id}`,
+          body: payload
+        })).data;
+      }
+      if (args.make_default) {
+        await ctx.client.request({ method: "POST", path: `${base}/${args.id}/columns/${col.id}/default` });
+      }
+      return { column: slimColumn(result), default: args.make_default || void 0 };
+    }
+  }),
+  defineTool({
+    name: "project_column_delete",
+    module: M7,
+    title: "Delete project column",
+    description: "Deletes a column from a project board; its cards move to the default column. Requires confirmation.",
+    access: "destructive",
+    feature: "projects",
+    input: { ...profileShape, ...repoShape, ...scopeShape, id: projectId, column: columnRef },
+    async confirm(args, ctx) {
+      const base = await projectsBase(ctx, args);
+      const col = await resolveColumn(ctx, base, args.id, args.column);
+      return {
+        target: `project-${args.id}:${col.title}`,
+        action: `Delete column "${col.title}" of project ${args.id}.`
+      };
+    },
+    async run(args, ctx) {
+      const base = await projectsBase(ctx, args);
+      const col = await resolveColumn(ctx, base, args.id, args.column);
+      await ctx.client.request({ method: "DELETE", path: `${base}/${args.id}/columns/${col.id}` });
+      return { deleted: col.title };
+    }
+  }),
+  defineTool({
+    name: "project_issue_add",
+    module: M7,
+    title: "Add issues to project",
+    description: "Adds issues or pull requests (by number, from owner/repo) to a project board column (title or id; default column if omitted).",
+    access: "write",
+    feature: "projects",
+    input: {
+      ...profileShape,
+      ...repoShape,
+      ...scopeShape,
+      id: projectId,
+      numbers: issueNumbers,
+      column: columnRef.optional()
+    },
+    async run(args, ctx) {
+      const base = await projectsBase(ctx, args);
+      const col = await resolveColumn(ctx, base, args.id, args.column);
+      const issues = await issueIds(ctx, args, args.numbers);
+      for (const i of issues) {
+        await ctx.client.request({
+          method: "POST",
+          path: `${base}/${args.id}/columns/${col.id}/issues/${i.id}`
+        });
+      }
+      return { column: col.title, added: issues.map((i) => ({ number: i.number, title: i.title })) };
+    }
+  }),
+  defineTool({
+    name: "project_issue_move",
+    module: M7,
+    title: "Move issues on project board",
+    description: 'Moves issues or pull requests (by number) to another column of a project board, e.g. to "In Progress" or "Done".',
+    access: "write",
+    feature: "projects",
+    input: {
+      ...profileShape,
+      ...repoShape,
+      ...scopeShape,
+      id: projectId,
+      numbers: issueNumbers,
+      column: columnRef
+    },
+    async run(args, ctx) {
+      const base = await projectsBase(ctx, args);
+      const col = await resolveColumn(ctx, base, args.id, args.column);
+      const issues = await issueIds(ctx, args, args.numbers);
+      for (const i of issues) {
+        await ctx.client.request({
+          method: "POST",
+          path: `${base}/${args.id}/issues/${i.id}/move`,
+          body: { column_id: col.id }
+        });
+      }
+      return { column: col.title, moved: issues.map((i) => i.number) };
+    }
+  }),
+  defineTool({
+    name: "project_issue_remove",
+    module: M7,
+    title: "Remove issues from project",
+    description: "Removes issues or pull requests (by number) from a project board column; the issues themselves are kept.",
+    access: "write",
+    feature: "projects",
+    input: {
+      ...profileShape,
+      ...repoShape,
+      ...scopeShape,
+      id: projectId,
+      numbers: issueNumbers,
+      column: columnRef
+    },
+    async run(args, ctx) {
+      const base = await projectsBase(ctx, args);
+      const col = await resolveColumn(ctx, base, args.id, args.column);
+      const issues = await issueIds(ctx, args, args.numbers);
+      for (const i of issues) {
+        await ctx.client.request({
+          method: "DELETE",
+          path: `${base}/${args.id}/columns/${col.id}/issues/${i.id}`
+        });
+      }
+      return { column: col.title, removed: issues.map((i) => i.number) };
+    }
+  })
+];
+
 // src/tools/modules/pulls.ts
-var M7 = "pull_requests";
+var M8 = "pull_requests";
 function globMatch(pattern, name) {
   const escape2 = (s) => s.replace(/[.+?^${}()|[\]\\]/g, "\\$&");
   const source = pattern.split("**").map((part) => part.split("*").map(escape2).join("[^/]*")).join(".*");
@@ -59653,7 +60042,7 @@ async function mergeReadiness(ctx, owner, repo, index) {
 var pullTools = [
   defineTool({
     name: "pr_list",
-    module: M7,
+    module: M8,
     title: "List pull requests",
     description: "Lists pull requests filtered by state, base branch, labels, milestone or author, with sorting.",
     access: "read",
@@ -59695,7 +60084,7 @@ var pullTools = [
   }),
   defineTool({
     name: "pr_get",
-    module: M7,
+    module: M8,
     title: "Get pull request",
     description: "Returns a pull request with description, branches, mergeability, reviewers and change counts. Use pr_diff for the patch and pr_merge_check for merge readiness. Pass number 0 or omit it to get the most recently updated open pull request.",
     access: "read",
@@ -59722,7 +60111,7 @@ var pullTools = [
   }),
   defineTool({
     name: "pr_create",
-    module: M7,
+    module: M8,
     title: "Create pull request",
     description: 'Opens a pull request from `head` into `base` (default: the default branch). For a branch in a fork use "owner:branch" as head. Push local branches first with local_branch_push.',
     access: "write",
@@ -59767,7 +60156,7 @@ var pullTools = [
   }),
   defineTool({
     name: "pr_update",
-    module: M7,
+    module: M8,
     title: "Edit pull request",
     description: "Edits title, description, base branch, assignees, labels, milestone or state of a pull request.",
     access: "write",
@@ -59807,7 +60196,7 @@ var pullTools = [
   }),
   defineTool({
     name: "pr_close",
-    module: M7,
+    module: M8,
     title: "Close pull request",
     description: "Closes a pull request without merging, optionally with a comment. It can be reopened with pr_update.",
     access: "write",
@@ -59837,7 +60226,7 @@ var pullTools = [
   }),
   defineTool({
     name: "pr_diff",
-    module: M7,
+    module: M8,
     title: "Get pull request diff",
     description: "Returns the unified diff of a pull request with per-file addition/deletion counts. Use `files` to show only some files of large diffs.",
     access: "read",
@@ -59860,7 +60249,7 @@ var pullTools = [
   }),
   defineTool({
     name: "pr_files",
-    module: M7,
+    module: M8,
     title: "List changed files of a pull request",
     description: "Lists the files changed by a pull request with status and line counts.",
     access: "read",
@@ -59889,7 +60278,7 @@ var pullTools = [
   }),
   defineTool({
     name: "pr_commits",
-    module: M7,
+    module: M8,
     title: "List pull request commits",
     description: "Lists the commits contained in a pull request.",
     access: "read",
@@ -59906,7 +60295,7 @@ var pullTools = [
   }),
   defineTool({
     name: "pr_reviews",
-    module: M7,
+    module: M8,
     title: "Get pull request reviews",
     description: "Lists the reviews of a pull request with their state and, optionally, their inline comments.",
     access: "read",
@@ -59935,7 +60324,7 @@ var pullTools = [
   }),
   defineTool({
     name: "pr_review_create",
-    module: M7,
+    module: M8,
     title: "Review pull request",
     description: "Submits a review: APPROVED, REQUEST_CHANGES or COMMENT, with an overall body and optional inline comments (path + line in the new file, or old_line for removed lines). Use PENDING to create a draft review.",
     access: "write",
@@ -59975,7 +60364,7 @@ var pullTools = [
   }),
   defineTool({
     name: "pr_review_submit",
-    module: M7,
+    module: M8,
     title: "Submit pending review",
     description: "Submits a previously created PENDING review with a final verdict.",
     access: "write",
@@ -59999,7 +60388,7 @@ var pullTools = [
   }),
   defineTool({
     name: "pr_request_reviewers",
-    module: M7,
+    module: M8,
     title: "Request reviewers",
     description: "Requests reviews from users and/or teams, or removes review requests.",
     access: "write",
@@ -60030,7 +60419,7 @@ var pullTools = [
   }),
   defineTool({
     name: "pr_merge_check",
-    module: M7,
+    module: M8,
     title: "Check merge readiness",
     description: "Checks whether a pull request can be merged: open/draft state, merge conflicts, required approvals and status checks from branch protection, and change requests. Returns blockers and warnings.",
     access: "read",
@@ -60042,7 +60431,7 @@ var pullTools = [
   }),
   defineTool({
     name: "pr_merge",
-    module: M7,
+    module: M8,
     title: "Merge pull request",
     description: "Merges a pull request with the chosen style (merge, rebase, rebase-merge, squash, fast-forward-only). Runs the merge readiness check first and refuses when blockers exist. Merging changes the target branch, so the user must confirm.",
     access: "write",
@@ -60098,7 +60487,7 @@ var pullTools = [
   }),
   defineTool({
     name: "pr_update_branch",
-    module: M7,
+    module: M8,
     title: "Update pull request branch",
     description: "Updates the head branch of a pull request with the latest changes of the base branch (merge or rebase).",
     access: "write",
@@ -60124,7 +60513,7 @@ var pullTools = [
 // src/tools/modules/releases.ts
 import { openAsBlob, statSync as statSync2 } from "node:fs";
 import { basename, isAbsolute as isAbsolute3, relative as relative2, resolve as resolve3 } from "node:path";
-var M8 = "releases";
+var M9 = "releases";
 var tagInput = string2().min(1).max(255).describe("Tag name, e.g. v1.2.0");
 var releaseRef = union([number2().int().min(1), string2().min(1).max(255)]).describe("Release id or tag name");
 var SECTION_TITLES = {
@@ -60227,7 +60616,7 @@ function safeLocalFile(cwd, requested) {
 var releaseTools = [
   defineTool({
     name: "release_list",
-    module: M8,
+    module: M9,
     title: "List releases",
     description: "Lists releases (newest first), optionally excluding drafts or pre-releases.",
     access: "read",
@@ -60255,7 +60644,7 @@ var releaseTools = [
   }),
   defineTool({
     name: "release_get",
-    module: M8,
+    module: M9,
     title: "Get release",
     description: 'Returns a release by id, tag name, or "latest" with notes and assets.',
     access: "read",
@@ -60267,7 +60656,7 @@ var releaseTools = [
   }),
   defineTool({
     name: "release_notes_generate",
-    module: M8,
+    module: M9,
     title: "Generate release notes",
     description: "Generates Markdown release notes for a tag (or a target branch/commit that will be tagged) from the commits since the previous release, grouped by Conventional Commit type. Does not change anything.",
     access: "read",
@@ -60294,7 +60683,7 @@ var releaseTools = [
   }),
   defineTool({
     name: "release_create",
-    module: M8,
+    module: M9,
     title: "Create release",
     description: "Creates a release for a tag. If the tag does not exist it is created on `target` (default branch). Set generate_notes to build the notes from commits since the previous release. Use draft or prerelease for unfinished versions.",
     access: "write",
@@ -60341,7 +60730,7 @@ ${g.notes}` : g.notes;
   }),
   defineTool({
     name: "release_update",
-    module: M8,
+    module: M9,
     title: "Edit release",
     description: "Edits a release: title, notes, tag, target, draft or pre-release flag (e.g. publish a draft).",
     access: "write",
@@ -60378,7 +60767,7 @@ ${g.notes}` : g.notes;
   }),
   defineTool({
     name: "release_delete",
-    module: M8,
+    module: M9,
     title: "Delete release",
     description: "Deletes a release and its assets (the git tag is kept unless delete_tag is set). Requires confirmation.",
     access: "destructive",
@@ -60405,7 +60794,7 @@ ${g.notes}` : g.notes;
   }),
   defineTool({
     name: "release_asset_list",
-    module: M8,
+    module: M9,
     title: "List release assets",
     description: "Lists the files attached to a release.",
     access: "read",
@@ -60421,7 +60810,7 @@ ${g.notes}` : g.notes;
   }),
   defineTool({
     name: "release_asset_upload",
-    module: M8,
+    module: M9,
     title: "Upload release asset",
     description: "Uploads a local file (inside the working directory) as an asset of a release.",
     access: "write",
@@ -60450,7 +60839,7 @@ ${g.notes}` : g.notes;
   }),
   defineTool({
     name: "release_asset_delete",
-    module: M8,
+    module: M9,
     title: "Delete release asset",
     description: "Deletes a file attached to a release. Requires confirmation.",
     access: "destructive",
@@ -60474,7 +60863,7 @@ ${g.notes}` : g.notes;
   }),
   defineTool({
     name: "release_compare",
-    module: M8,
+    module: M9,
     title: "Compare two releases",
     description: "Compares two releases (default: the latest two published releases): commits between them grouped by type, changed files and both release notes.",
     access: "read",
@@ -60532,11 +60921,11 @@ ${g.notes}` : g.notes;
 ];
 
 // src/tools/modules/repos.ts
-var M9 = "repositories";
+var M10 = "repositories";
 var repoTools = [
   defineTool({
     name: "repo_list",
-    module: M9,
+    module: M10,
     title: "List repositories",
     description: "Lists repositories. Without `owner` it lists all repositories the authenticated user can access (own, collaborations, organisations). With `owner` it lists the repositories of that user or organisation.",
     access: "read",
@@ -60563,7 +60952,7 @@ var repoTools = [
   }),
   defineTool({
     name: "repo_search",
-    module: M9,
+    module: M10,
     title: "Search repositories",
     description: "Searches repositories on the server by keyword (name and optionally description), topic, visibility and archive state, with sorting.",
     access: "read",
@@ -60599,7 +60988,7 @@ var repoTools = [
   }),
   defineTool({
     name: "repo_get",
-    module: M9,
+    module: M10,
     title: "Get repository details",
     description: "Returns repository metadata: visibility, default branch, counters, enabled units, merge settings, topics, languages and your permissions.",
     access: "read",
@@ -60629,7 +61018,7 @@ var repoTools = [
   }),
   defineTool({
     name: "repo_create",
-    module: M9,
+    module: M10,
     title: "Create repository",
     description: "Creates a new repository for the authenticated user or, with `organization`, inside an organisation. Repositories are private by default. Needs the token scope write:user (own account) or write:organization (organisation).",
     access: "write",
@@ -60668,7 +61057,7 @@ var repoTools = [
   }),
   defineTool({
     name: "repo_update",
-    module: M9,
+    module: M10,
     title: "Update repository settings",
     description: "Edits repository settings such as description, website, default branch, enabled units (issues, wiki, pull requests, actions, releases, projects) and allowed merge styles. Visibility and archive state have dedicated tools because they need confirmation.",
     access: "write",
@@ -60705,7 +61094,7 @@ var repoTools = [
   }),
   defineTool({
     name: "repo_set_visibility",
-    module: M9,
+    module: M10,
     title: "Change repository visibility",
     description: "Makes a repository private or public. Making a repository public exposes its code, issues and history to everyone, so the user must confirm.",
     access: "write",
@@ -60733,7 +61122,7 @@ var repoTools = [
   }),
   defineTool({
     name: "repo_archive",
-    module: M9,
+    module: M10,
     title: "Archive or unarchive repository",
     description: "Archives a repository (read-only: no pushes, issues or pull requests) or unarchives it. Requires user confirmation.",
     access: "write",
@@ -60761,7 +61150,7 @@ var repoTools = [
   }),
   defineTool({
     name: "repo_delete",
-    module: M9,
+    module: M10,
     title: "Delete repository",
     description: "PERMANENTLY deletes a repository including code, issues, pull requests, releases and wiki. This cannot be undone. Requires destructive operations to be enabled and an explicit user confirmation naming the repository.",
     access: "destructive",
@@ -60781,7 +61170,7 @@ var repoTools = [
   }),
   defineTool({
     name: "repo_fork",
-    module: M9,
+    module: M10,
     title: "Fork repository",
     description: "Forks a repository into your account or into an organisation, optionally under a new name.",
     access: "write",
@@ -60803,7 +61192,7 @@ var repoTools = [
   }),
   defineTool({
     name: "repo_forks_list",
-    module: M9,
+    module: M10,
     title: "List forks",
     description: "Lists the forks of a repository.",
     access: "read",
@@ -60816,7 +61205,7 @@ var repoTools = [
   }),
   defineTool({
     name: "repo_topics_set",
-    module: M9,
+    module: M10,
     title: "Set repository topics",
     description: "Replaces the topics of a repository (lowercase, digits and dashes).",
     access: "write",
@@ -60846,6 +61235,7 @@ var ALL_TOOLS = [
   ...contentTools,
   ...gitTools,
   ...issueTools,
+  ...projectTools,
   ...pullTools,
   ...orgTools,
   ...actionTools,
