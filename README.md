@@ -81,7 +81,7 @@ Offline / air-gapped: download `gitea-plugin-<version>.zip` from the [releases](
 
 ### Connecting to your own Gitea
 
-1. In Gitea open **Settings → Applications → Manage Access Tokens** and create a token. Recommended scopes for everyday work: `write:repository`, `write:issue`, `read:user`, `read:organization`, `write:notification` (read-only use: the `read:` variants).
+1. In Gitea open **Settings → Applications → Manage Access Tokens** and create a token. Recommended scopes for everyday work: `write:repository`, `write:issue`, `write:user`, `read:organization`, `write:notification` (read-only use: the `read:` variants).
 2. Configure the plugin with your server, e.g. `https://git.tracht-digital.de`, and the token.
 3. Ask Claude: _"Test the Gitea connection."_ — `connection_test` reports the server version, the user, granted scopes, supported features and enabled operation levels.
 
