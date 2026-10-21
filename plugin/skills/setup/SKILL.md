@@ -34,6 +34,7 @@ with only the scopes they need:
 | Read-only (browse, analyse)                 | `read:repository`, `read:issue`, `read:user`, `read:organization`, `read:notification`     |
 | Typical development (issues, PRs, releases) | `write:repository`, `write:issue`, `write:user`, `read:organization`, `write:notification` |
 | Organisation / team administration          | additionally `write:organization` (also needed to create repositories in an organisation)  |
+| Packages (list, upload, delete)             | additionally `write:package` (`read:package` to only list them)                            |
 
 Then tell them to enter the values with `/plugin` → _gitea_ → _Configure_ (or
 `claude plugin configure gitea` in a terminal) and to run `/reload-plugins`. Never ask the user to

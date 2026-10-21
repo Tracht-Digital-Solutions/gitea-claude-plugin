@@ -38,6 +38,7 @@ visibility and permission changes need a confirmation for every single call.
 | Read-only (browse, analyse, review) | `read:repository`, `read:issue`, `read:user`, `read:organization`, `read:notification`     |
 | Everyday development                | `write:repository`, `write:issue`, `write:user`, `read:organization`, `write:notification` |
 | Organisation administration         | additionally `write:organization` (also needed to create repositories in an organisation)  |
+| Packages (list, upload, delete)     | additionally `write:package` (`read:package` to only list them)                            |
 
 Gitea assigns creating a repository under your own account to the **user** scope (`write:user`), and creating one in an organisation to `write:organization`; `write:repository` alone is not enough for that.
 
