@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/jtracht/claude-code-gitea/compare/v0.3.0...v0.4.0) (2026-10-21)
+
+
+### Features
+
+* add time tracking, wiki, package and runner tools ([#14](https://github.com/jtracht/claude-code-gitea/issues/14)) ([f3c996e](https://github.com/jtracht/claude-code-gitea/commit/f3c996ed59373a71815df69792b3a82b835224ed))
+
 ## [0.3.0](https://github.com/jtracht/claude-code-gitea/compare/v0.2.1...v0.3.0) (2026-10-21)
 
 
