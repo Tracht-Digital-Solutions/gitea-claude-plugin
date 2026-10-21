@@ -411,6 +411,80 @@ describe.skipIf(!env)('Gitea integration', () => {
     });
   });
 
+  describe('projects', () => {
+    it('manages a repository kanban board with issues', async () => {
+      const created = await h.call('project_create', {
+        owner,
+        repo: REPO,
+        title: 'Sprint 1',
+        description: 'Integration board',
+        template: 'basic_kanban',
+      });
+      const id = created.project.id;
+      const titles = created.columns.map((c: Obj) => c.title);
+      expect(titles.length).toBeGreaterThanOrEqual(3);
+      const list = await h.call('project_list', { owner, repo: REPO });
+      expect(list.projects.map((p: Obj) => p.title)).toContain('Sprint 1');
+      await h.call('project_column_create', { owner, repo: REPO, id, title: 'Review', color: '00aabb' });
+      await h.call('project_column_update', {
+        owner,
+        repo: REPO,
+        id,
+        column: 'Review',
+        title: 'Code Review',
+      });
+      await h.call('project_column_update', { owner, repo: REPO, id, column: titles[0], make_default: true });
+      await h.call('project_issue_add', { owner, repo: REPO, id, numbers: [1, 2] });
+      const moved = await h.call('project_issue_move', {
+        owner,
+        repo: REPO,
+        id,
+        numbers: [1],
+        column: 'Code Review',
+      });
+      expect(moved.moved).toEqual([1]);
+      const board = await h.call('project_get', { owner, repo: REPO, id });
+      const byCol = Object.fromEntries(
+        board.columns.map((c: Obj) => [c.title, c.issues.map((i: Obj) => i.number)]),
+      );
+      expect(byCol['Code Review']).toEqual([1]);
+      expect(byCol[titles[0]]).toEqual([2]);
+      const bad = await h.fail('project_issue_move', { owner, repo: REPO, id, numbers: [2], column: 'Nope' });
+      expect(bad.hint).toMatch(/Code Review/);
+      await h.call('project_issue_remove', { owner, repo: REPO, id, numbers: [2], column: titles[0] });
+      await h.call('project_column_delete', { owner, repo: REPO, id, column: 'Code Review' });
+      const after = await h.call('project_get', { owner, repo: REPO, id });
+      expect(after.columns.map((c: Obj) => c.title)).not.toContain('Code Review');
+      const closed = await h.call('project_update', { owner, repo: REPO, id, state: 'closed' });
+      expect(closed.project.state).toBe('closed');
+      expect((await h.call('project_delete', { owner, repo: REPO, id })).deleted).toBe(id);
+    });
+
+    it('creates user projects with custom columns', async () => {
+      const created = await h.call('project_create', {
+        scope: 'user',
+        title: `Personal ${run}`,
+        columns: ['Backlog', 'Doing', 'Done'],
+      });
+      expect(created.columns.map((c: Obj) => c.title)).toEqual(['Backlog', 'Doing', 'Done']);
+      const list = await h.call('project_list', { scope: 'user' });
+      expect(list.projects.map((p: Obj) => p.id)).toContain(created.project.id);
+      await h.call('project_issue_add', {
+        scope: 'user',
+        owner,
+        repo: REPO,
+        id: created.project.id,
+        numbers: [2],
+        column: 'Doing',
+      });
+      const board = await h.call('project_get', { scope: 'user', id: created.project.id });
+      expect(board.columns.find((c: Obj) => c.title === 'Doing').issues[0].number).toBe(2);
+      await h.call('project_delete', { scope: 'user', id: created.project.id });
+      const missingOrg = await h.fail('project_list', { scope: 'org' });
+      expect(missingOrg.code).toBe('INVALID_INPUT');
+    });
+  });
+
   describe('pull requests', () => {
     it('creates a pull request from local changes', async () => {
       const auth = new URL(e.url);

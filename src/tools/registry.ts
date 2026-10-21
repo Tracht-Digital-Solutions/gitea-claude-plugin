@@ -7,6 +7,7 @@ import { extendedTools } from './modules/extended.js';
 import { gitTools } from './modules/git.js';
 import { issueTools } from './modules/issues.js';
 import { orgTools } from './modules/orgs.js';
+import { projectTools } from './modules/projects.js';
 import { pullTools } from './modules/pulls.js';
 import { releaseTools } from './modules/releases.js';
 import { repoTools } from './modules/repos.js';
@@ -18,6 +19,7 @@ export const ALL_TOOLS: readonly ToolDefinition[] = [
   ...contentTools,
   ...gitTools,
   ...issueTools,
+  ...projectTools,
   ...pullTools,
   ...orgTools,
   ...actionTools,

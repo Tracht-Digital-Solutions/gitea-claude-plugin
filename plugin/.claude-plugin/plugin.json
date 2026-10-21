@@ -3,7 +3,7 @@
   "name": "gitea",
   "displayName": "Gitea",
   "version": "0.2.1",
-  "description": "Work with any Gitea instance from Claude Code: repositories, files, branches, issues, pull requests, reviews, organisations, Gitea Actions, releases and webhooks via a bundled MCP server.",
+  "description": "Work with any Gitea instance from Claude Code: repositories, files, branches, issues, project boards, pull requests, reviews, organisations, Gitea Actions, releases and webhooks via a bundled MCP server.",
   "author": {
     "name": "Julian Tracht",
     "url": "https://github.com/jtracht"
