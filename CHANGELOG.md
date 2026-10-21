@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/jtracht/claude-code-gitea/compare/v0.4.0...v0.4.1) (2026-10-21)
+
+
+### Bug Fixes
+
+* **releases:** treat every SemVer pre-release suffix as a pre-release ([#16](https://github.com/jtracht/claude-code-gitea/issues/16)) ([903f56d](https://github.com/jtracht/claude-code-gitea/commit/903f56dbccced826feeb0a3db5ac49fb7be63b7e))
+
 ## [0.4.0](https://github.com/jtracht/claude-code-gitea/compare/v0.3.0...v0.4.0) (2026-10-21)
 
 
