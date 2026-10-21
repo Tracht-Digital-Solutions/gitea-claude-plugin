@@ -10,7 +10,7 @@ import { slimHook, slimPull, slimRepo } from '../../src/gitea/models.js';
 import { analyzeLog } from '../../src/tools/modules/actions.js';
 import { analyzeCommits, commitType, formatDiff, splitDiff } from '../../src/tools/modules/git.js';
 import { priorityOf, summarizeIssues } from '../../src/tools/modules/issues.js';
-import { buildReleaseNotes } from '../../src/tools/modules/releases.js';
+import { buildReleaseNotes, isPrereleaseTag } from '../../src/tools/modules/releases.js';
 
 const swagger: unknown = JSON.parse(readFileSync('test/fixtures/gitea-swagger.v1.json', 'utf8'));
 
@@ -136,6 +136,23 @@ describe('diff handling', () => {
     expect(out.diff).toContain('b.txt');
     expect(out.diff).not.toContain('a/a.txt');
     expect(formatDiff(diff, { maxChars: 20 }).truncated).toBe(true);
+  });
+});
+
+describe('pre-release detection', () => {
+  it.each([
+    'v1.0.0-rc.1',
+    'v0.1.0-test.1',
+    '1.0.0-beta',
+    'v2.0.0-alpha.3+build.5',
+    'v1.0-dev',
+    'nightly-2026-10-21',
+    'release-preview',
+  ])('%s is a pre-release', (tag) => {
+    expect(isPrereleaseTag(tag)).toBe(true);
+  });
+  it.each(['v1.0.0', '1.2.3', 'v1.0.0+build.5', 'release-2026', 'prod'])('%s is not a pre-release', (tag) => {
+    expect(isPrereleaseTag(tag)).toBe(false);
   });
 });
 
