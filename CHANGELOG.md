@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/jtracht/claude-code-gitea/compare/v0.4.1...v0.5.0) (2026-10-21)
+
+
+### Features
+
+* **projects:** reorder project columns and report inherited Actions runners ([#19](https://github.com/jtracht/claude-code-gitea/issues/19)) ([b3f35a2](https://github.com/jtracht/claude-code-gitea/commit/b3f35a25e781f50630d07a5e22983b0e58d8e692))
+
 ## [0.4.1](https://github.com/jtracht/claude-code-gitea/compare/v0.4.0...v0.4.1) (2026-10-21)
 
 
