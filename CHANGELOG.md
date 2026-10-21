@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1](https://github.com/jtracht/claude-code-gitea/compare/v0.5.0...v0.5.1) (2026-10-21)
+
+
+### Refactoring
+
+* restructure the server and share helpers across tool modules ([#21](https://github.com/jtracht/claude-code-gitea/issues/21)) ([fa1a562](https://github.com/jtracht/claude-code-gitea/commit/fa1a5625d49ec9c726255024caba9f25cb380dfe))
+
 ## [0.5.0](https://github.com/jtracht/claude-code-gitea/compare/v0.4.1...v0.5.0) (2026-10-21)
 
 
