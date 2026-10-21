@@ -2990,7 +2990,7 @@ var require_compile = __commonJS({
       const schOrFunc = root.refs[ref];
       if (schOrFunc)
         return schOrFunc;
-      let _sch = resolve4.call(this, root, ref);
+      let _sch = resolve5.call(this, root, ref);
       if (_sch === void 0) {
         const schema = (_a3 = root.localRefs) === null || _a3 === void 0 ? void 0 : _a3[ref];
         const { schemaId } = this.opts;
@@ -3017,7 +3017,7 @@ var require_compile = __commonJS({
     function sameSchemaEnv(s1, s2) {
       return s1.schema === s2.schema && s1.root === s2.root && s1.baseId === s2.baseId;
     }
-    function resolve4(root, ref) {
+    function resolve5(root, ref) {
       let sch;
       while (typeof (sch = this.refs[ref]) == "string")
         ref = sch;
@@ -3881,7 +3881,7 @@ var require_fast_uri = __commonJS({
       }
       return uri;
     }
-    function resolve4(baseURI, relativeURI, options) {
+    function resolve5(baseURI, relativeURI, options) {
       const schemelessOptions = options ? Object.assign({ scheme: "null" }, options) : { scheme: "null" };
       const {
         parsed: baseParsed,
@@ -3917,50 +3917,50 @@ var require_fast_uri = __commonJS({
       schemelessOptions.skipEscape = true;
       return serialize(resolved, schemelessOptions);
     }
-    function resolveComponent(base, relative3, options, skipNormalization) {
+    function resolveComponent(base, relative4, options, skipNormalization) {
       const target = {};
       if (!skipNormalization) {
         base = parse3(serialize(base, options), options);
-        relative3 = parse3(serialize(relative3, options), options);
+        relative4 = parse3(serialize(relative4, options), options);
       }
       options = options || {};
-      if (!options.tolerant && relative3.scheme) {
-        target.scheme = relative3.scheme;
-        target.userinfo = relative3.userinfo;
-        target.host = relative3.host;
-        target.port = relative3.port;
-        target.path = removeDotSegments(relative3.path || "");
-        target.query = relative3.query;
+      if (!options.tolerant && relative4.scheme) {
+        target.scheme = relative4.scheme;
+        target.userinfo = relative4.userinfo;
+        target.host = relative4.host;
+        target.port = relative4.port;
+        target.path = removeDotSegments(relative4.path || "");
+        target.query = relative4.query;
       } else {
-        if (relative3.userinfo !== void 0 || relative3.host !== void 0 || relative3.port !== void 0) {
-          target.userinfo = relative3.userinfo;
-          target.host = relative3.host;
-          target.port = relative3.port;
-          target.path = removeDotSegments(relative3.path || "");
-          target.query = relative3.query;
+        if (relative4.userinfo !== void 0 || relative4.host !== void 0 || relative4.port !== void 0) {
+          target.userinfo = relative4.userinfo;
+          target.host = relative4.host;
+          target.port = relative4.port;
+          target.path = removeDotSegments(relative4.path || "");
+          target.query = relative4.query;
         } else {
-          if (!relative3.path) {
+          if (!relative4.path) {
             target.path = base.path;
-            if (relative3.query !== void 0) {
-              target.query = relative3.query;
+            if (relative4.query !== void 0) {
+              target.query = relative4.query;
             } else {
               target.query = base.query;
             }
           } else {
-            if (relative3.path[0] === "/") {
-              target.path = removeDotSegments(relative3.path);
+            if (relative4.path[0] === "/") {
+              target.path = removeDotSegments(relative4.path);
             } else {
               const baseHasAuthority = base.userinfo !== void 0 || base.host !== void 0 || base.port !== void 0;
               if (baseHasAuthority && !base.path) {
-                target.path = "/" + relative3.path;
+                target.path = "/" + relative4.path;
               } else if (!base.path) {
-                target.path = relative3.path;
+                target.path = relative4.path;
               } else {
-                target.path = base.path.slice(0, base.path.lastIndexOf("/") + 1) + relative3.path;
+                target.path = base.path.slice(0, base.path.lastIndexOf("/") + 1) + relative4.path;
               }
               target.path = base.scheme === void 0 && !baseHasAuthority && target.path[0] !== "/" ? removeDotSegmentsRelative(target.path) : removeDotSegments(target.path);
             }
-            target.query = relative3.query;
+            target.query = relative4.query;
           }
           target.userinfo = base.userinfo;
           target.host = base.host;
@@ -3968,7 +3968,7 @@ var require_fast_uri = __commonJS({
         }
         target.scheme = base.scheme;
       }
-      target.fragment = relative3.fragment;
+      target.fragment = relative4.fragment;
       return target;
     }
     function equal(uriA, uriB, options) {
@@ -4272,7 +4272,7 @@ var require_fast_uri = __commonJS({
     var fastUri = {
       SCHEMES,
       normalize,
-      resolve: resolve4,
+      resolve: resolve5,
       resolveComponent,
       equal,
       serialize,
@@ -4695,8 +4695,8 @@ var require_core = __commonJS({
         for (const jsonPointer of keywordsJsonPointers) {
           const segments = jsonPointer.split("/").slice(1);
           let keywords = metaSchema;
-          for (const seg of segments)
-            keywords = keywords[seg];
+          for (const seg2 of segments)
+            keywords = keywords[seg2];
           for (const key in rules) {
             const rule = rules[key];
             if (typeof rule != "object")
@@ -12247,9 +12247,9 @@ var require_dispatcher_base = __commonJS({
       }
       close(callback) {
         if (callback === void 0) {
-          return new Promise((resolve4, reject) => {
+          return new Promise((resolve5, reject) => {
             this.close((err, data) => {
-              return err ? reject(err) : resolve4(data);
+              return err ? reject(err) : resolve5(data);
             });
           });
         }
@@ -12287,9 +12287,9 @@ var require_dispatcher_base = __commonJS({
           err = null;
         }
         if (callback === void 0) {
-          return new Promise((resolve4, reject) => {
+          return new Promise((resolve5, reject) => {
             this.destroy(err, (err2, data) => {
-              return err2 ? reject(err2) : resolve4(data);
+              return err2 ? reject(err2) : resolve5(data);
             });
           });
         }
@@ -17669,12 +17669,12 @@ upgrade: ${upgrade}\r
           cb();
         }
       }
-      const waitForDrain = () => new Promise((resolve4, reject) => {
+      const waitForDrain = () => new Promise((resolve5, reject) => {
         assert2(callback === null);
         if (socket[kError]) {
           reject(socket[kError]);
         } else {
-          callback = resolve4;
+          callback = resolve5;
         }
       });
       socket.on("close", onDrain).on("drain", onDrain);
@@ -19169,12 +19169,12 @@ var require_client_h2 = __commonJS({
           cb();
         }
       }
-      const waitForDrain = () => new Promise((resolve4, reject) => {
+      const waitForDrain = () => new Promise((resolve5, reject) => {
         assert2(callback === null);
         if (socket[kError]) {
           reject(socket[kError]);
         } else {
-          callback = resolve4;
+          callback = resolve5;
         }
       });
       h2stream.on("close", onDrain).on("drain", onDrain);
@@ -19546,16 +19546,16 @@ var require_client = __commonJS({
         return this[kNeedDrain] < 2;
       }
       [kClose]() {
-        return new Promise((resolve4) => {
+        return new Promise((resolve5) => {
           if (this[kSize]) {
-            this[kClosedResolve] = resolve4;
+            this[kClosedResolve] = resolve5;
           } else {
-            resolve4(null);
+            resolve5(null);
           }
         });
       }
       [kDestroy](err) {
-        return new Promise((resolve4) => {
+        return new Promise((resolve5) => {
           const requests = this[kQueue].splice(this[kPendingIdx]);
           for (let i = 0; i < requests.length; i++) {
             const request = requests[i];
@@ -19568,7 +19568,7 @@ var require_client = __commonJS({
               this[kClosedResolve]();
               this[kClosedResolve] = null;
             }
-            resolve4(null);
+            resolve5(null);
           };
           if (this[kHTTPContext]) {
             this[kHTTPContext].destroy(err, callback);
@@ -20045,8 +20045,8 @@ var require_pool_base = __commonJS({
         if (this[kQueue].isEmpty()) {
           return closeClients(this);
         } else {
-          return new Promise((resolve4) => {
-            this[kClosedResolve] = resolve4;
+          return new Promise((resolve5) => {
+            this[kClosedResolve] = resolve5;
           });
         }
       }
@@ -20115,8 +20115,8 @@ var require_pool_base = __commonJS({
         }
         let done = false;
         let resolveClosed;
-        const closed = new Promise((resolve4) => {
-          resolveClosed = resolve4;
+        const closed = new Promise((resolve5) => {
+          resolveClosed = resolve5;
         });
         this[kRetiring].set(client, closed);
         client.close(() => {
@@ -22921,7 +22921,7 @@ var require_readable = __commonJS({
         if (this._readableState.closeEmitted) {
           return Promise.resolve(null);
         }
-        return new Promise((resolve4, reject) => {
+        return new Promise((resolve5, reject) => {
           if (this[kContentLength] && this[kContentLength] > limit || this[kBytesRead] > limit) {
             this.destroy(new AbortError());
           }
@@ -22935,11 +22935,11 @@ var require_readable = __commonJS({
               if (signal.aborted) {
                 reject(signal.reason ?? new AbortError());
               } else {
-                resolve4(null);
+                resolve5(null);
               }
             });
           } else {
-            this.on("close", resolve4);
+            this.on("close", resolve5);
           }
           this.on("error", noop).on("data", () => {
             if (this[kBytesRead] > limit) {
@@ -22967,7 +22967,7 @@ var require_readable = __commonJS({
     }
     function consume(stream, type) {
       assert2(!stream[kConsume]);
-      return new Promise((resolve4, reject) => {
+      return new Promise((resolve5, reject) => {
         if (isUnusable(stream)) {
           const rState = stream._readableState;
           if (rState.destroyed && rState.closeEmitted === false) {
@@ -22982,7 +22982,7 @@ var require_readable = __commonJS({
             stream[kConsume] = {
               type,
               stream,
-              resolve: resolve4,
+              resolve: resolve5,
               reject,
               length: 0,
               body: []
@@ -23060,18 +23060,18 @@ var require_readable = __commonJS({
       return buffer;
     }
     function consumeEnd(consume2, encoding) {
-      const { type, body: body2, resolve: resolve4, stream, length } = consume2;
+      const { type, body: body2, resolve: resolve5, stream, length } = consume2;
       try {
         if (type === "text") {
-          resolve4(chunksDecode(body2, length, encoding));
+          resolve5(chunksDecode(body2, length, encoding));
         } else if (type === "json") {
-          resolve4(JSON.parse(chunksDecode(body2, length, encoding)));
+          resolve5(JSON.parse(chunksDecode(body2, length, encoding)));
         } else if (type === "arrayBuffer") {
-          resolve4(chunksConcat(body2, length).buffer);
+          resolve5(chunksConcat(body2, length).buffer);
         } else if (type === "blob") {
-          resolve4(new Blob(body2, { type: stream[kContentType] }));
+          resolve5(new Blob(body2, { type: stream[kContentType] }));
         } else if (type === "bytes") {
-          resolve4(chunksConcat(body2, length));
+          resolve5(chunksConcat(body2, length));
         }
         consumeFinish(consume2);
       } catch (err) {
@@ -23290,9 +23290,9 @@ var require_api_request = __commonJS({
     };
     function request(opts, callback) {
       if (callback === void 0) {
-        return new Promise((resolve4, reject) => {
+        return new Promise((resolve5, reject) => {
           request.call(this, opts, (err, data) => {
-            return err ? reject(err) : resolve4(data);
+            return err ? reject(err) : resolve5(data);
           });
         });
       }
@@ -23553,9 +23553,9 @@ var require_api_stream = __commonJS({
     };
     function stream(opts, factory, callback) {
       if (callback === void 0) {
-        return new Promise((resolve4, reject) => {
+        return new Promise((resolve5, reject) => {
           stream.call(this, opts, factory, (err, data) => {
-            return err ? reject(err) : resolve4(data);
+            return err ? reject(err) : resolve5(data);
           });
         });
       }
@@ -23855,9 +23855,9 @@ var require_api_upgrade = __commonJS({
     };
     function upgrade(opts, callback) {
       if (callback === void 0) {
-        return new Promise((resolve4, reject) => {
+        return new Promise((resolve5, reject) => {
           upgrade.call(this, opts, (err, data) => {
-            return err ? reject(err) : resolve4(data);
+            return err ? reject(err) : resolve5(data);
           });
         });
       }
@@ -23951,9 +23951,9 @@ var require_api_connect = __commonJS({
     };
     function connect(opts, callback) {
       if (callback === void 0) {
-        return new Promise((resolve4, reject) => {
+        return new Promise((resolve5, reject) => {
           connect.call(this, opts, (err, data) => {
-            return err ? reject(err) : resolve4(data);
+            return err ? reject(err) : resolve5(data);
           });
         });
       }
@@ -25430,7 +25430,7 @@ var require_snapshot_recorder = __commonJS({
   "node_modules/undici/lib/mock/snapshot-recorder.js"(exports, module) {
     "use strict";
     var { writeFile: writeFile2, readFile, mkdir: mkdir2 } = __require("node:fs/promises");
-    var { dirname: dirname2, resolve: resolve4 } = __require("node:path");
+    var { dirname: dirname2, resolve: resolve5 } = __require("node:path");
     var { setTimeout: setTimeout2, clearTimeout: clearTimeout2 } = __require("node:timers");
     var { InvalidArgumentError, UndiciError } = require_errors2();
     var { setHeader } = require_util2();
@@ -25647,7 +25647,7 @@ var require_snapshot_recorder = __commonJS({
           throw new InvalidArgumentError("Snapshot path is required");
         }
         try {
-          const data = await readFile(resolve4(path), "utf8");
+          const data = await readFile(resolve5(path), "utf8");
           const parsed = JSON.parse(data);
           if (Array.isArray(parsed)) {
             this.#snapshots.clear();
@@ -25676,7 +25676,7 @@ var require_snapshot_recorder = __commonJS({
         if (!path) {
           throw new InvalidArgumentError("Snapshot path is required");
         }
-        const resolvedPath = resolve4(path);
+        const resolvedPath = resolve5(path);
         await mkdir2(dirname2(resolvedPath), { recursive: true });
         const data = Array.from(this.#snapshots.entries()).map(([hash, snapshot]) => ({
           hash,
@@ -33762,7 +33762,7 @@ var require_fetch = __commonJS({
         const hasTrailingQuestionMark = url2.search.length === 0 && url2.href[url2.href.length - url2.hash.length - 1] === "?";
         return dispatchWithProtocolPreference(body2);
         function dispatchWithProtocolPreference(body3, allowH2) {
-          return new Promise((resolve4, reject) => agent.dispatch(
+          return new Promise((resolve5, reject) => agent.dispatch(
             {
               path: hasTrailingQuestionMark ? `${path}?` : path,
               origin: url2.origin,
@@ -33849,7 +33849,7 @@ var require_fetch = __commonJS({
                 }
                 this.body = new Readable({ read: () => controller.resume() });
                 const onError = (err) => this.onResponseError(controller, err);
-                resolve4({
+                resolve5({
                   status,
                   statusText,
                   headersList,
@@ -33882,7 +33882,7 @@ var require_fetch = __commonJS({
                   fetchParams.controller.off("terminated", this.abort);
                 }
                 if (request.mode === "websocket" && allowH2 !== false && error2?.code === "UND_ERR_INFO" && error2?.message === "HTTP/2: Extended CONNECT protocol not supported by server") {
-                  resolve4(dispatchWithProtocolPreference(body3, false));
+                  resolve5(dispatchWithProtocolPreference(body3, false));
                   return;
                 }
                 this.body?.destroy(error2);
@@ -33901,7 +33901,7 @@ var require_fetch = __commonJS({
                 const rawHeaders = controller?.rawHeaders ?? [];
                 const headersList = new HeadersList();
                 appendHeadersListFromResponseHeaders(headersList, headers, rawHeaders);
-                resolve4({
+                resolve5({
                   status,
                   statusText: STATUS_CODES[status],
                   headersList,
@@ -39435,18 +39435,18 @@ function formatError(error2, mapper = (issue2) => issue2.message) {
 }
 function toDotPath(_path) {
   const segs = [];
-  const path = _path.map((seg) => typeof seg === "object" ? seg.key : seg);
-  for (const seg of path) {
-    if (typeof seg === "number")
-      segs.push(`[${seg}]`);
-    else if (typeof seg === "symbol")
-      segs.push(`[${JSON.stringify(String(seg))}]`);
-    else if (/[^\w$]/.test(seg))
-      segs.push(`[${JSON.stringify(seg)}]`);
+  const path = _path.map((seg2) => typeof seg2 === "object" ? seg2.key : seg2);
+  for (const seg2 of path) {
+    if (typeof seg2 === "number")
+      segs.push(`[${seg2}]`);
+    else if (typeof seg2 === "symbol")
+      segs.push(`[${JSON.stringify(String(seg2))}]`);
+    else if (/[^\w$]/.test(seg2))
+      segs.push(`[${JSON.stringify(seg2)}]`);
     else {
       if (segs.length)
         segs.push(".");
-      segs.push(seg);
+      segs.push(seg2);
     }
   }
   return segs.join("");
@@ -41727,7 +41727,7 @@ var recursive = /* @__PURE__ */ new WeakMap();
 var NONE = 0;
 var ASSUMED = 1;
 var PROVEN = 2;
-function isRecursive(inst, stack, resolve4) {
+function isRecursive(inst, stack, resolve5) {
   const cached2 = recursive.get(inst);
   if (cached2 !== void 0)
     return cached2 ? PROVEN : NONE;
@@ -41737,7 +41737,7 @@ function isRecursive(inst, stack, resolve4) {
   let result = NONE;
   const check = (child) => {
     if (result !== PROVEN && child?._zod) {
-      const answer = isRecursive(child, stack, resolve4);
+      const answer = isRecursive(child, stack, resolve5);
       if (answer > result)
         result = answer;
     }
@@ -41748,7 +41748,7 @@ function isRecursive(inst, stack, resolve4) {
       const desc = Object.getOwnPropertyDescriptor(sh, key);
       if (spread && !desc.enumerable)
         continue;
-      const child = desc.get ? ASSUMED : desc.value?._zod ? isRecursive(desc.value, stack, resolve4) : NONE;
+      const child = desc.get ? ASSUMED : desc.value?._zod ? isRecursive(desc.value, stack, resolve5) : NONE;
       if (child > answer)
         answer = child;
     }
@@ -41812,7 +41812,7 @@ function isRecursive(inst, stack, resolve4) {
       break;
     // `$ZodLazy` caches its inner on the def, so a resolved edge is followed exactly
     case "lazy": {
-      const inner = def._cachedInner ?? (resolve4 ? inst._zod.innerType : void 0);
+      const inner = def._cachedInner ?? (resolve5 ? inst._zod.innerType : void 0);
       merge2(inner ? isRecursive(inner, stack, false) : ASSUMED);
       break;
     }
@@ -46618,12 +46618,12 @@ var StdioServerTransport = class {
     this.onclose?.();
   }
   send(message) {
-    return new Promise((resolve4) => {
+    return new Promise((resolve5) => {
       const json = serializeMessage(message);
       if (this._stdout.write(json)) {
-        resolve4();
+        resolve5();
       } else {
-        this._stdout.once("drain", resolve4);
+        this._stdout.once("drain", resolve5);
       }
     });
   }
@@ -51027,14 +51027,14 @@ function getDotPath(path) {
   if (path.length === 0) {
     return "object root";
   }
-  return path.reduce((acc, seg, index) => {
+  return path.reduce((acc, seg2, index) => {
     if (index === 0) {
-      return String(seg);
+      return String(seg2);
     }
-    if (typeof seg === "number") {
-      return `${acc}[${seg}]`;
+    if (typeof seg2 === "number") {
+      return `${acc}[${seg2}]`;
     }
-    return `${acc}.${seg}`;
+    return `${acc}.${seg2}`;
   }, "");
 }
 function getParseErrorMessage(error2) {
@@ -52952,7 +52952,7 @@ var Protocol = class {
           return;
         }
         const pollInterval = task2.pollInterval ?? this._options?.defaultTaskPollInterval ?? 1e3;
-        await new Promise((resolve4) => setTimeout(resolve4, pollInterval));
+        await new Promise((resolve5) => setTimeout(resolve5, pollInterval));
         options?.signal?.throwIfAborted();
       }
     } catch (error2) {
@@ -52969,7 +52969,7 @@ var Protocol = class {
    */
   request(request, resultSchema, options) {
     const { relatedRequestId, resumptionToken, onresumptiontoken, task, relatedTask } = options ?? {};
-    return new Promise((resolve4, reject) => {
+    return new Promise((resolve5, reject) => {
       const earlyReject = (error2) => {
         reject(error2);
       };
@@ -53047,7 +53047,7 @@ var Protocol = class {
           if (!parseResult.success) {
             reject(parseResult.error);
           } else {
-            resolve4(parseResult.data);
+            resolve5(parseResult.data);
           }
         } catch (error2) {
           reject(error2);
@@ -53309,12 +53309,12 @@ var Protocol = class {
       }
     } catch {
     }
-    return new Promise((resolve4, reject) => {
+    return new Promise((resolve5, reject) => {
       if (signal.aborted) {
         reject(new McpError(ErrorCode.InvalidRequest, "Request cancelled"));
         return;
       }
-      const timeoutId = setTimeout(resolve4, interval);
+      const timeoutId = setTimeout(resolve5, interval);
       signal.addEventListener("abort", () => {
         clearTimeout(timeoutId);
         reject(new McpError(ErrorCode.InvalidRequest, "Request cancelled"));
@@ -54445,7 +54445,7 @@ var McpServer = class {
     let task = createTaskResult.task;
     const pollInterval = task.pollInterval ?? 5e3;
     while (task.status !== "completed" && task.status !== "failed" && task.status !== "cancelled") {
-      await new Promise((resolve4) => setTimeout(resolve4, pollInterval));
+      await new Promise((resolve5) => setTimeout(resolve5, pollInterval));
       const updatedTask = await extra.taskStore.getTask(taskId);
       if (!updatedTask) {
         throw new McpError(ErrorCode.InternalError, `Task ${taskId} not found during polling`);
@@ -55057,6 +55057,10 @@ var FEATURE_ENDPOINTS = {
   pr_update_branch: "POST /repos/{owner}/{repo}/pulls/{index}/update",
   notifications: "GET /notifications",
   projects: "GET /repos/{owner}/{repo}/projects",
+  time_tracking: "GET /repos/{owner}/{repo}/issues/{index}/times",
+  wiki: "GET /repos/{owner}/{repo}/wiki/pages",
+  packages: "GET /packages/{owner}",
+  actions_runners: "GET /repos/{owner}/{repo}/actions/runners",
   repo_archive_download: "GET /repos/{owner}/{repo}/archive/{archive}"
 };
 function parseVersion(version2) {
@@ -55291,6 +55295,7 @@ var GiteaHttpClient = class {
     const accept = responseType === "json" ? "application/json" : "*/*";
     let bodyInit;
     if (opts.form) bodyInit = opts.form;
+    else if (opts.raw) bodyInit = opts.raw;
     else if (opts.body !== void 0) bodyInit = JSON.stringify(opts.body);
     for (let attempt = 0; ; attempt++) {
       let res;
@@ -55301,7 +55306,10 @@ var GiteaHttpClient = class {
           this.options.onRequest?.({ method, url: url2 });
           res = await (0, import_undici.fetch)(url2, {
             method,
-            headers: this.headers(withAuth, accept, opts.body !== void 0 && !opts.form),
+            headers: {
+              ...this.headers(withAuth, accept, opts.body !== void 0 && !opts.form && !opts.raw),
+              ...opts.raw ? { "content-type": "application/octet-stream" } : {}
+            },
             body: bodyInit,
             redirect: "manual",
             dispatcher: this.dispatcher,
@@ -55459,7 +55467,7 @@ var GiteaHttpClient = class {
 import { execFile } from "node:child_process";
 var GIT_TIMEOUT_MS = 6e4;
 function runGit(args, cwd, timeoutMs = GIT_TIMEOUT_MS) {
-  return new Promise((resolve4, reject) => {
+  return new Promise((resolve5, reject) => {
     execFile(
       "git",
       args,
@@ -55486,7 +55494,7 @@ function runGit(args, cwd, timeoutMs = GIT_TIMEOUT_MS) {
           );
           return;
         }
-        resolve4({ stdout, stderr });
+        resolve5({ stdout, stderr });
       }
     );
   });
@@ -55965,8 +55973,8 @@ var shaSchema = string2().regex(/^[0-9a-fA-F]{7,64}$/, "must be a hex commit SHA
 var dateSchema = iso_exports.datetime({ offset: true }).describe("ISO-8601 date-time, e.g. 2025-01-31T00:00:00Z");
 var stateSchema = _enum(["open", "closed", "all"]).default("open");
 var colorSchema = string2().regex(/^#?[0-9a-fA-F]{6}$/, "color must be a 6-digit hex value like #ee0701").transform((c) => c.startsWith("#") ? c : `#${c}`);
-function repoPath(owner, repo) {
-  return `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`;
+function repoPath(owner2, repo) {
+  return `/repos/${encodeURIComponent(owner2)}/${encodeURIComponent(repo)}`;
 }
 function requireSomeFields(body2, what) {
   if (Object.values(body2).every((v) => v === void 0)) {
@@ -56519,17 +56527,17 @@ function isBinary(buf) {
   const sample = buf.subarray(0, 8e3);
   return sample.includes(0);
 }
-async function getContent(ctx, owner, repo, path, ref) {
+async function getContent(ctx, owner2, repo, path, ref) {
   const res = await ctx.client.request({
-    path: `${repoPath(owner, repo)}/contents/${filePath(path)}`,
+    path: `${repoPath(owner2, repo)}/contents/${filePath(path)}`,
     query: { ref }
   });
   return res.data;
 }
-async function readTextFile(ctx, owner, repo, path, ref) {
+async function readTextFile(ctx, owner2, repo, path, ref) {
   try {
     const res = await ctx.client.request({
-      path: `${repoPath(owner, repo)}/raw/${filePath(path)}`,
+      path: `${repoPath(owner2, repo)}/raw/${filePath(path)}`,
       query: { ref },
       responseType: "binary",
       maxBytes: 2 * 1024 * 1024
@@ -56541,19 +56549,19 @@ async function readTextFile(ctx, owner, repo, path, ref) {
     throw err;
   }
 }
-async function currentSha(ctx, owner, repo, path, ref) {
-  const entry = await getContent(ctx, owner, repo, path, ref);
+async function currentSha(ctx, owner2, repo, path, ref) {
+  const entry = await getContent(ctx, owner2, repo, path, ref);
   if (Array.isArray(entry) || entry.type !== "file") {
     throw new GiteaError("INVALID_INPUT", `${path} is not a regular file.`);
   }
   return entry.sha;
 }
-async function listTree(ctx, owner, repo, ref, maxEntries) {
+async function listTree(ctx, owner2, repo, ref, maxEntries) {
   const entries = [];
   let truncated = false;
   for (let page = 1; entries.length < maxEntries; page++) {
     const res = await ctx.client.request({
-      path: `${repoPath(owner, repo)}/git/trees/${encodeURIComponent(ref)}`,
+      path: `${repoPath(owner2, repo)}/git/trees/${encodeURIComponent(ref)}`,
       query: { recursive: true, page, per_page: 1e3 }
     });
     const tree = res.data.tree ?? [];
@@ -56567,8 +56575,8 @@ async function listTree(ctx, owner, repo, ref, maxEntries) {
   }
   return { entries: entries.slice(0, maxEntries), truncated: truncated || entries.length > maxEntries };
 }
-async function defaultBranch(ctx, owner, repo) {
-  const res = await ctx.client.request({ path: repoPath(owner, repo) });
+async function defaultBranch(ctx, owner2, repo) {
+  const res = await ctx.client.request({ path: repoPath(owner2, repo) });
   return res.data.default_branch;
 }
 function globToRegExp(glob) {
@@ -56613,8 +56621,8 @@ var contentTools = [
       max_chars: number2().int().min(100).max(5e5).default(1e5)
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const entry = await getContent(ctx, owner, repo, args.path, args.ref);
+      const { owner: owner2, repo } = await ctx.repo(args);
+      const entry = await getContent(ctx, owner2, repo, args.path, args.ref);
       if (Array.isArray(entry)) {
         return {
           type: "dir",
@@ -56627,7 +56635,7 @@ var contentTools = [
       }
       const raw = entry.content ? Buffer.from(entry.content, "base64") : void 0;
       if (raw === void 0) {
-        const text = await readTextFile(ctx, owner, repo, args.path, args.ref);
+        const text = await readTextFile(ctx, owner2, repo, args.path, args.ref);
         const t2 = truncateText(text ?? "", args.max_chars);
         return {
           path: entry.path,
@@ -56664,10 +56672,10 @@ var contentTools = [
       ref: refSchema.optional()
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       const p = args.path.replace(/^\/+|\/+$/g, "");
       const res = await ctx.client.request({
-        path: p ? `${repoPath(owner, repo)}/contents/${filePath(p)}` : `${repoPath(owner, repo)}/contents`,
+        path: p ? `${repoPath(owner2, repo)}/contents/${filePath(p)}` : `${repoPath(owner2, repo)}/contents`,
         query: { ref: args.ref }
       });
       if (!Array.isArray(res.data))
@@ -56694,9 +56702,9 @@ var contentTools = [
       max_entries: number2().int().min(1).max(2e4).default(2e3)
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const ref = args.ref ?? await defaultBranch(ctx, owner, repo);
-      const { entries, truncated } = await listTree(ctx, owner, repo, ref, args.max_entries);
+      const { owner: owner2, repo } = await ctx.repo(args);
+      const ref = args.ref ?? await defaultBranch(ctx, owner2, repo);
+      const { entries, truncated } = await listTree(ctx, owner2, repo, ref, args.max_entries);
       const prefix = args.path_prefix?.replace(/^\/+/, "");
       const filtered = prefix ? entries.filter((e) => e.path.startsWith(prefix)) : entries;
       return {
@@ -56721,9 +56729,9 @@ var contentTools = [
       limit: number2().int().min(1).max(5e3).default(200)
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const ref = args.ref ?? await defaultBranch(ctx, owner, repo);
-      const { entries, truncated } = await listTree(ctx, owner, repo, ref, 5e4);
+      const { owner: owner2, repo } = await ctx.repo(args);
+      const ref = args.ref ?? await defaultBranch(ctx, owner2, repo);
+      const { entries, truncated } = await listTree(ctx, owner2, repo, ref, 5e4);
       const isGlob = /[*?]/.test(args.pattern);
       const re = isGlob ? globToRegExp(args.pattern) : void 0;
       const needle = args.pattern.toLowerCase();
@@ -56749,8 +56757,8 @@ var contentTools = [
       max_matches: number2().int().min(1).max(1e3).default(100)
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const ref = args.ref ?? await defaultBranch(ctx, owner, repo);
+      const { owner: owner2, repo } = await ctx.repo(args);
+      const ref = args.ref ?? await defaultBranch(ctx, owner2, repo);
       let matcher;
       try {
         const source = args.regex ? args.query : args.query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -56758,7 +56766,7 @@ var contentTools = [
       } catch (err) {
         throw new GiteaError("INVALID_INPUT", `Invalid regular expression: ${err.message}`);
       }
-      const { entries } = await listTree(ctx, owner, repo, ref, 5e4);
+      const { entries } = await listTree(ctx, owner2, repo, ref, 5e4);
       const glob = args.path_glob ? globToRegExp(args.path_glob) : void 0;
       const candidates = entries.filter(
         (e) => e.type === "blob" && (e.size ?? 0) <= 512 * 1024 && (!glob || glob.test(e.path))
@@ -56769,7 +56777,7 @@ var contentTools = [
         if (matches.length >= args.max_matches) return;
         let text;
         try {
-          text = await readTextFile(ctx, owner, repo, entry.path, ref);
+          text = await readTextFile(ctx, owner2, repo, entry.path, ref);
         } catch {
           return;
         }
@@ -56805,10 +56813,10 @@ var contentTools = [
       ...commitShape
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       const res = await ctx.client.request({
         method: "POST",
-        path: `${repoPath(owner, repo)}/contents/${filePath(args.path)}`,
+        path: `${repoPath(owner2, repo)}/contents/${filePath(args.path)}`,
         body: {
           ...commitBody(args),
           message: args.message ?? `Create ${args.path}`,
@@ -56839,12 +56847,12 @@ var contentTools = [
       ...commitShape
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       const sourcePath = args.from_path ?? args.path;
-      const sha = args.sha ?? await currentSha(ctx, owner, repo, sourcePath, args.branch);
+      const sha = args.sha ?? await currentSha(ctx, owner2, repo, sourcePath, args.branch);
       const res = await ctx.client.request({
         method: "PUT",
-        path: `${repoPath(owner, repo)}/contents/${filePath(args.path)}`,
+        path: `${repoPath(owner2, repo)}/contents/${filePath(args.path)}`,
         body: body({
           ...commitBody(args),
           message: args.message ?? `Update ${args.path}`,
@@ -56875,18 +56883,18 @@ var contentTools = [
       ...commitShape
     },
     async confirm(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       return {
-        target: `${owner}/${repo}:${args.path}`,
-        action: `Delete file ${args.path} from ${owner}/${repo}${args.branch ? ` on branch ${args.branch}` : ""} (a commit is created; history keeps the old version).`
+        target: `${owner2}/${repo}:${args.path}`,
+        action: `Delete file ${args.path} from ${owner2}/${repo}${args.branch ? ` on branch ${args.branch}` : ""} (a commit is created; history keeps the old version).`
       };
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const sha = args.sha ?? await currentSha(ctx, owner, repo, args.path, args.branch);
+      const { owner: owner2, repo } = await ctx.repo(args);
+      const sha = args.sha ?? await currentSha(ctx, owner2, repo, args.path, args.branch);
       const res = await ctx.client.request({
         method: "DELETE",
-        path: `${repoPath(owner, repo)}/contents/${filePath(args.path)}`,
+        path: `${repoPath(owner2, repo)}/contents/${filePath(args.path)}`,
         body: { ...commitBody(args), message: args.message ?? `Delete ${args.path}`, sha }
       });
       return { deleted: args.path, commit: res.data.commit?.sha };
@@ -56914,7 +56922,7 @@ var contentTools = [
       message: string2().min(1).max(1e4).describe("Commit message.")
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       if (args.files.some((f) => f.operation === "delete") && !(ctx.config.permissions.destructive && !ctx.profile.readOnly)) {
         throw new GiteaError(
           "PERMISSION_DENIED",
@@ -56933,7 +56941,7 @@ var contentTools = [
         if (f.operation === "rename" && !f.from_path) {
           throw new GiteaError("INVALID_INPUT", `from_path is required to rename ${f.path}`);
         }
-        const sha = f.operation === "update" || f.operation === "delete" || f.operation === "rename" ? await currentSha(ctx, owner, repo, f.from_path ?? f.path, args.branch) : void 0;
+        const sha = f.operation === "update" || f.operation === "delete" || f.operation === "rename" ? await currentSha(ctx, owner2, repo, f.from_path ?? f.path, args.branch) : void 0;
         files.push(
           body({
             operation: f.operation === "rename" ? "update" : f.operation,
@@ -56946,7 +56954,7 @@ var contentTools = [
       }
       const res = await ctx.client.request({
         method: "POST",
-        path: `${repoPath(owner, repo)}/contents`,
+        path: `${repoPath(owner2, repo)}/contents`,
         body: { ...commitBody(args), message: args.message, files }
       });
       return {
@@ -56972,11 +56980,11 @@ var contentTools = [
       context_lines: number2().int().min(0).max(20).default(3)
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       const headPath = args.head_path ?? args.path;
       const [a, b] = await Promise.all([
-        readTextFile(ctx, owner, repo, args.path, args.base),
-        readTextFile(ctx, owner, repo, headPath, args.head)
+        readTextFile(ctx, owner2, repo, args.path, args.base),
+        readTextFile(ctx, owner2, repo, headPath, args.head)
       ]);
       if (a === void 0 && b === void 0) {
         throw new GiteaError("NOT_FOUND", `${args.path} exists in neither ${args.base} nor ${args.head}.`);
@@ -57022,17 +57030,17 @@ function analyzeLog(log2, tailLines) {
     tail: lines.slice(-tailLines).join("\n")
   };
 }
-async function jobsOfRun(ctx, owner, repo, run) {
+async function jobsOfRun(ctx, owner2, repo, run) {
   const res = await ctx.client.paginate(
-    `${repoPath(owner, repo)}/actions/runs/${run}/jobs`,
+    `${repoPath(owner2, repo)}/actions/runs/${run}/jobs`,
     {},
     { limit: 200, key: "jobs" }
   );
   return res.items;
 }
-async function jobLog(ctx, owner, repo, job, maxBytes) {
+async function jobLog(ctx, owner2, repo, job, maxBytes) {
   const res = await ctx.client.request({
-    path: `${repoPath(owner, repo)}/actions/jobs/${job}/logs`,
+    path: `${repoPath(owner2, repo)}/actions/jobs/${job}/logs`,
     responseType: "text",
     maxBytes,
     allowForeignRedirect: true
@@ -57057,9 +57065,9 @@ var actionTools = [
     feature: "actions_workflows",
     input: { ...profileShape, ...repoShape },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       const workflows = await ctx.client.list(
-        `${repoPath(owner, repo)}/actions/workflows`,
+        `${repoPath(owner2, repo)}/actions/workflows`,
         {},
         "workflows"
       );
@@ -57080,11 +57088,11 @@ var actionTools = [
     feature: "actions_workflows",
     input: { ...profileShape, ...repoShape, workflow: workflowId, ref: string2().max(255).optional() },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       const res = await ctx.client.request({
-        path: `${repoPath(owner, repo)}/actions/workflows/${encodeURIComponent(args.workflow)}`
+        path: `${repoPath(owner2, repo)}/actions/workflows/${encodeURIComponent(args.workflow)}`
       });
-      const yaml = res.data.path ? await readTextFile(ctx, owner, repo, res.data.path, args.ref) : void 0;
+      const yaml = res.data.path ? await readTextFile(ctx, owner2, repo, res.data.path, args.ref) : void 0;
       return {
         ...compact({ id: res.data.id, name: res.data.name, path: res.data.path, state: res.data.state }),
         content: yaml
@@ -57120,8 +57128,8 @@ var actionTools = [
       ...pagingShape
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const path = args.workflow ? `${repoPath(owner, repo)}/actions/workflows/${encodeURIComponent(args.workflow)}/runs` : `${repoPath(owner, repo)}/actions/runs`;
+      const { owner: owner2, repo } = await ctx.repo(args);
+      const path = args.workflow ? `${repoPath(owner2, repo)}/actions/workflows/${encodeURIComponent(args.workflow)}/runs` : `${repoPath(owner2, repo)}/actions/runs`;
       const res = await ctx.client.paginate(
         path,
         {
@@ -57145,9 +57153,9 @@ var actionTools = [
     feature: "actions_runs",
     input: { ...profileShape, ...repoShape, run_id: runId },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const run = await ctx.client.request({ path: `${repoPath(owner, repo)}/actions/runs/${args.run_id}` });
-      const jobs = await jobsOfRun(ctx, owner, repo, args.run_id).catch(() => void 0);
+      const { owner: owner2, repo } = await ctx.repo(args);
+      const run = await ctx.client.request({ path: `${repoPath(owner2, repo)}/actions/runs/${args.run_id}` });
+      const jobs = await jobsOfRun(ctx, owner2, repo, args.run_id).catch(() => void 0);
       return { ...slimRun(run.data), jobs: jobs?.map(slimJob) };
     }
   }),
@@ -57167,8 +57175,8 @@ var actionTools = [
       max_chars: number2().int().min(1e3).max(1e6).default(1e5)
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const log2 = await jobLog(ctx, owner, repo, args.job_id, 20 * 1024 * 1024);
+      const { owner: owner2, repo } = await ctx.repo(args);
+      const log2 = await jobLog(ctx, owner2, repo, args.job_id, 20 * 1024 * 1024);
       if (args.full) {
         const t = truncateText(log2.text, args.max_chars);
         return { job_id: args.job_id, truncated: t.truncated || log2.truncated, log: t.text };
@@ -57196,9 +57204,9 @@ var actionTools = [
       tail_lines: number2().int().min(10).max(500).default(60)
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       const caps = await ctx.capabilities();
-      const path = args.workflow ? `${repoPath(owner, repo)}/actions/workflows/${encodeURIComponent(args.workflow)}/runs` : `${repoPath(owner, repo)}/actions/runs`;
+      const path = args.workflow ? `${repoPath(owner2, repo)}/actions/workflows/${encodeURIComponent(args.workflow)}/runs` : `${repoPath(owner2, repo)}/actions/runs`;
       const runs = await ctx.client.paginate(
         path,
         { status: "failure", branch: args.branch },
@@ -57207,13 +57215,13 @@ var actionTools = [
       const analysed = [];
       for (const run of runs.items) {
         const id = Number(run.id);
-        const jobs = await jobsOfRun(ctx, owner, repo, id).catch(() => []);
+        const jobs = await jobsOfRun(ctx, owner2, repo, id).catch(() => []);
         const failed = jobs.filter((j) => j.conclusion === "failure" || j.status === "failure");
         const failedJobs = [];
         for (const job of failed.slice(0, 5)) {
           let log2;
           if (caps.features.actions_job_logs !== false) {
-            log2 = await jobLog(ctx, owner, repo, Number(job.id), 5 * 1024 * 1024).then((l) => analyzeLog(l.text, args.tail_lines)).catch((err) => ({
+            log2 = await jobLog(ctx, owner2, repo, Number(job.id), 5 * 1024 * 1024).then((l) => analyzeLog(l.text, args.tail_lines)).catch((err) => ({
               unavailable: err instanceof GiteaError ? err.message : String(err)
             }));
           }
@@ -57228,7 +57236,7 @@ var actionTools = [
         analysed.push({ ...slimRun(run), failed_jobs: failedJobs });
       }
       return {
-        repository: `${owner}/${repo}`,
+        repository: `${owner2}/${repo}`,
         failed_runs_found: runs.totalCount ?? runs.items.length,
         runs: analysed,
         note: runs.items.length ? void 0 : "No failed runs found."
@@ -57250,10 +57258,10 @@ var actionTools = [
       inputs: record(string2(), string2()).optional()
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       const res = await ctx.client.request({
         method: "POST",
-        path: `${repoPath(owner, repo)}/actions/workflows/${encodeURIComponent(args.workflow)}/dispatches`,
+        path: `${repoPath(owner2, repo)}/actions/workflows/${encodeURIComponent(args.workflow)}/dispatches`,
         query: { return_run_details: true },
         body: body({ ref: args.ref, inputs: args.inputs })
       });
@@ -57280,8 +57288,8 @@ var actionTools = [
       job_id: jobId.optional().describe('Required for mode "job".')
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const base = `${repoPath(owner, repo)}/actions/runs/${args.run_id}`;
+      const { owner: owner2, repo } = await ctx.repo(args);
+      const base = `${repoPath(owner2, repo)}/actions/runs/${args.run_id}`;
       let path = `${base}/rerun`;
       if (args.mode === "failed") {
         const caps = await ctx.capabilities();
@@ -57306,10 +57314,10 @@ var actionTools = [
     feature: "actions_cancel",
     input: { ...profileShape, ...repoShape, run_id: runId },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       await ctx.client.request({
         method: "POST",
-        path: `${repoPath(owner, repo)}/actions/runs/${args.run_id}/cancel`
+        path: `${repoPath(owner2, repo)}/actions/runs/${args.run_id}/cancel`
       });
       return { cancelled: args.run_id };
     }
@@ -57329,8 +57337,8 @@ var actionTools = [
       limit: number2().int().min(1).max(500).default(100)
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const path = args.run_id ? `${repoPath(owner, repo)}/actions/runs/${args.run_id}/artifacts` : `${repoPath(owner, repo)}/actions/artifacts`;
+      const { owner: owner2, repo } = await ctx.repo(args);
+      const path = args.run_id ? `${repoPath(owner2, repo)}/actions/runs/${args.run_id}/artifacts` : `${repoPath(owner2, repo)}/actions/artifacts`;
       const artifacts = await ctx.client.list(
         path,
         { name: args.name },
@@ -57366,9 +57374,9 @@ var actionTools = [
       overwrite: boolean2().default(false)
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       const meta2 = await ctx.client.request({
-        path: `${repoPath(owner, repo)}/actions/artifacts/${args.artifact_id}`
+        path: `${repoPath(owner2, repo)}/actions/artifacts/${args.artifact_id}`
       });
       if (meta2.data.expired) throw new GiteaError("NOT_FOUND", `Artifact ${args.artifact_id} has expired.`);
       const safeName = meta2.data.name.replace(/[^A-Za-z0-9._-]/g, "_");
@@ -57380,7 +57388,7 @@ var actionTools = [
         throw new GiteaError("INVALID_INPUT", `${target} is a directory.`);
       }
       const res = await ctx.client.request({
-        path: `${repoPath(owner, repo)}/actions/artifacts/${args.artifact_id}/zip`,
+        path: `${repoPath(owner2, repo)}/actions/artifacts/${args.artifact_id}/zip`,
         responseType: "binary",
         maxBytes: 500 * 1024 * 1024,
         allowForeignRedirect: true
@@ -57390,6 +57398,50 @@ var actionTools = [
       await mkdir(dirname(target), { recursive: true });
       await writeFile(target, res.data);
       return { saved_to: target, bytes: res.data.length, name: meta2.data.name };
+    }
+  }),
+  defineTool({
+    name: "actions_runner_list",
+    module: M2,
+    title: "List Actions runners",
+    description: "Lists the Actions runners available to a repository, an organisation (org) or your user account, with status, labels and whether they are busy. Use it to find out why a workflow run stays queued.",
+    access: "read",
+    feature: "actions_runners",
+    input: {
+      ...profileShape,
+      ...repoShape,
+      scope: _enum(["repo", "org", "user"]).default("repo"),
+      org: string2().regex(/^[A-Za-z0-9_.-]{1,100}$/).optional()
+    },
+    async run(args, ctx) {
+      let path;
+      if (args.scope === "user") path = "/user/actions/runners";
+      else if (args.scope === "org") {
+        if (!args.org) throw new GiteaError("INVALID_INPUT", 'org is required for scope "org".');
+        path = `/orgs/${encodeURIComponent(args.org)}/actions/runners`;
+      } else {
+        const { owner: owner2, repo } = await ctx.repo(args);
+        path = `${repoPath(owner2, repo)}/actions/runners`;
+      }
+      const runners = await ctx.client.list(path, {}, "runners");
+      return {
+        scope: args.scope,
+        total: runners.length,
+        online: runners.filter((r) => r.status === "online" || r.status === "idle" || r.status === "active").length,
+        runners: runners.map(
+          (r) => compact({
+            id: r.id,
+            name: r.name,
+            status: r.status,
+            busy: r.busy,
+            disabled: r.disabled || void 0,
+            labels: Array.isArray(r.labels) ? r.labels.map(
+              (l) => typeof l === "object" && l !== null ? l.name : l
+            ) : void 0
+          })
+        ),
+        note: runners.length ? void 0 : "No runner is registered for this scope; workflow runs will stay queued. Instance-wide runners are not listed here."
+      };
     }
   })
 ];
@@ -57523,9 +57575,9 @@ var HOOK_EVENTS = [
 var hookScope = {
   org: ownerSchema.optional().describe("Manage organisation webhooks instead of repository webhooks.")
 };
-function hookBase(args, owner, repo) {
+function hookBase(args, owner2, repo) {
   if (args.org) return `/orgs/${encodeURIComponent(args.org)}/hooks`;
-  return `${repoPath(owner, repo)}/hooks`;
+  return `${repoPath(owner2, repo)}/hooks`;
 }
 var extendedTools = [
   defineTool({
@@ -57667,8 +57719,8 @@ var extendedTools = [
     access: "write",
     input: { ...profileShape, ...repoShape, id: number2().int().min(1) },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      await ctx.client.request({ method: "POST", path: `${repoPath(owner, repo)}/hooks/${args.id}/tests` });
+      const { owner: owner2, repo } = await ctx.repo(args);
+      await ctx.client.request({ method: "POST", path: `${repoPath(owner2, repo)}/hooks/${args.id}/tests` });
       return { triggered: true, id: args.id };
     }
   }),
@@ -57733,8 +57785,8 @@ var extendedTools = [
     access: "read",
     input: { ...profileShape, ...repoShape },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const base = repoPath(owner, repo);
+      const { owner: owner2, repo } = await ctx.repo(args);
+      const base = repoPath(owner2, repo);
       const info = (await ctx.client.request({ path: base })).data;
       const branch = typeof info.default_branch === "string" ? info.default_branch : "main";
       const soft = (p) => p.catch(() => void 0);
@@ -57803,7 +57855,7 @@ var extendedTools = [
       if (!Array.isArray(info.topics) || info.topics.length === 0)
         suggestions.push("Add topics to make the repository discoverable.");
       const readme = files.readme ? await soft(
-        readTextFile(ctx, owner, repo, [...names].find((n) => /^readme/.test(n)) ?? "README.md", branch)
+        readTextFile(ctx, owner2, repo, [...names].find((n) => /^readme/.test(n)) ?? "README.md", branch)
       ) : void 0;
       return {
         repository: slimRepo(info),
@@ -57926,8 +57978,8 @@ var gitTools = [
     access: "read",
     input: { ...profileShape, ...repoShape, ...pagingShape },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const res = await ctx.client.paginate(`${repoPath(owner, repo)}/branches`, {}, args);
+      const { owner: owner2, repo } = await ctx.repo(args);
+      const res = await ctx.client.paginate(`${repoPath(owner2, repo)}/branches`, {}, args);
       return { total: res.totalCount, has_more: res.hasMore, branches: res.items.map(slimBranch) };
     }
   }),
@@ -57939,9 +57991,9 @@ var gitTools = [
     access: "read",
     input: { ...profileShape, ...repoShape, branch: branchName },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       const res = await ctx.client.request({
-        path: `${repoPath(owner, repo)}/branches/${encodeURIComponent(args.branch)}`
+        path: `${repoPath(owner2, repo)}/branches/${encodeURIComponent(args.branch)}`
       });
       return slimBranch(res.data);
     }
@@ -57959,10 +58011,10 @@ var gitTools = [
       from: refSchema.optional().describe("Branch, tag or commit SHA to start from.")
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       const res = await ctx.client.request({
         method: "POST",
-        path: `${repoPath(owner, repo)}/branches`,
+        path: `${repoPath(owner2, repo)}/branches`,
         body: body({ new_branch_name: args.branch, old_ref_name: args.from })
       });
       return { created: true, branch: slimBranch(res.data) };
@@ -57976,17 +58028,17 @@ var gitTools = [
     access: "destructive",
     input: { ...profileShape, ...repoShape, branch: branchName },
     async confirm(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       return {
-        target: `${owner}/${repo}@${args.branch}`,
-        action: `Delete branch "${args.branch}" in ${owner}/${repo}. Unmerged commits on it may be lost.`
+        target: `${owner2}/${repo}@${args.branch}`,
+        action: `Delete branch "${args.branch}" in ${owner2}/${repo}. Unmerged commits on it may be lost.`
       };
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       await ctx.client.request({
         method: "DELETE",
-        path: `${repoPath(owner, repo)}/branches/${encodeURIComponent(args.branch)}`
+        path: `${repoPath(owner2, repo)}/branches/${encodeURIComponent(args.branch)}`
       });
       return { deleted: args.branch };
     }
@@ -58008,10 +58060,10 @@ var gitTools = [
       max_diff_chars: number2().int().min(1e3).max(5e5).default(6e4)
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       const basehead = `${encodeURIComponent(args.base)}...${encodeURIComponent(args.head)}`;
       const res = await ctx.client.request({
-        path: `${repoPath(owner, repo)}/compare/${basehead}`
+        path: `${repoPath(owner2, repo)}/compare/${basehead}`
       });
       const commits = res.data.commits ?? [];
       const files = /* @__PURE__ */ new Map();
@@ -58028,8 +58080,8 @@ var gitTools = [
         const patches = [];
         for (const name of names) {
           const [a, b] = await Promise.all([
-            readTextFile(ctx, owner, repo, name, args.base).catch(() => void 0),
-            readTextFile(ctx, owner, repo, name, args.head).catch(() => void 0)
+            readTextFile(ctx, owner2, repo, name, args.base).catch(() => void 0),
+            readTextFile(ctx, owner2, repo, name, args.head).catch(() => void 0)
           ]);
           if (a === b) continue;
           patches.push(createTwoFilesPatch(`a/${name}`, `b/${name}`, a ?? "", b ?? "", args.base, args.head));
@@ -58058,9 +58110,9 @@ var gitTools = [
       ...pagingShape
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       const res = await ctx.client.paginate(
-        `${repoPath(owner, repo)}/commits`,
+        `${repoPath(owner2, repo)}/commits`,
         {
           sha: args.ref,
           path: args.path,
@@ -58093,8 +58145,8 @@ var gitTools = [
       max_diff_chars: number2().int().min(1e3).max(5e5).default(6e4)
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const base = repoPath(owner, repo);
+      const { owner: owner2, repo } = await ctx.repo(args);
+      const base = repoPath(owner2, repo);
       const res = await ctx.client.request({
         path: `${base}/git/commits/${encodeURIComponent(args.sha)}`,
         query: { stat: true, files: true, verification: false }
@@ -58127,9 +58179,9 @@ var gitTools = [
       max_commits: number2().int().min(1).max(2e3).default(300)
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       const res = await ctx.client.paginate(
-        `${repoPath(owner, repo)}/commits`,
+        `${repoPath(owner2, repo)}/commits`,
         {
           sha: args.ref,
           since: args.since,
@@ -58152,9 +58204,9 @@ var gitTools = [
     access: "read",
     input: { ...profileShape, ...repoShape, ref: refSchema },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       const res = await ctx.client.request({
-        path: `${repoPath(owner, repo)}/commits/${encodeURIComponent(args.ref)}/status`
+        path: `${repoPath(owner2, repo)}/commits/${encodeURIComponent(args.ref)}/status`
       });
       return {
         sha: res.data.sha,
@@ -58181,8 +58233,8 @@ var gitTools = [
     access: "read",
     input: { ...profileShape, ...repoShape, ...pagingShape },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const res = await ctx.client.paginate(`${repoPath(owner, repo)}/tags`, {}, args);
+      const { owner: owner2, repo } = await ctx.repo(args);
+      const res = await ctx.client.paginate(`${repoPath(owner2, repo)}/tags`, {}, args);
       return { total: res.totalCount, has_more: res.hasMore, tags: res.items.map(slimTag) };
     }
   }),
@@ -58194,9 +58246,9 @@ var gitTools = [
     access: "read",
     input: { ...profileShape, ...repoShape, tag: tagName },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       const res = await ctx.client.request({
-        path: `${repoPath(owner, repo)}/tags/${encodeURIComponent(args.tag)}`
+        path: `${repoPath(owner2, repo)}/tags/${encodeURIComponent(args.tag)}`
       });
       return slimTag(res.data);
     }
@@ -58215,10 +58267,10 @@ var gitTools = [
       message: string2().max(1e4).optional().describe("Annotation message.")
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       const res = await ctx.client.request({
         method: "POST",
-        path: `${repoPath(owner, repo)}/tags`,
+        path: `${repoPath(owner2, repo)}/tags`,
         body: body({ tag_name: args.tag, target: args.target, message: args.message })
       });
       return { created: true, tag: slimTag(res.data) };
@@ -58232,17 +58284,17 @@ var gitTools = [
     access: "destructive",
     input: { ...profileShape, ...repoShape, tag: tagName },
     async confirm(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       return {
-        target: `${owner}/${repo}@${args.tag}`,
-        action: `Delete tag "${args.tag}" in ${owner}/${repo}.`
+        target: `${owner2}/${repo}@${args.tag}`,
+        action: `Delete tag "${args.tag}" in ${owner2}/${repo}.`
       };
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       await ctx.client.request({
         method: "DELETE",
-        path: `${repoPath(owner, repo)}/tags/${encodeURIComponent(args.tag)}`
+        path: `${repoPath(owner2, repo)}/tags/${encodeURIComponent(args.tag)}`
       });
       return { deleted: args.tag };
     }
@@ -58255,9 +58307,9 @@ var gitTools = [
     access: "read",
     input: { ...profileShape, ...repoShape },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       const res = await ctx.client.request({
-        path: `${repoPath(owner, repo)}/branch_protections`
+        path: `${repoPath(owner2, repo)}/branch_protections`
       });
       return { rules: res.data.map(slimBranchProtection) };
     }
@@ -58275,16 +58327,16 @@ var gitTools = [
       ...protectionFields
     },
     async confirm(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       return {
-        target: `${owner}/${repo}@${args.rule_name}`,
-        action: `Create or change the branch protection rule "${args.rule_name}" in ${owner}/${repo}. This changes who may push and merge.`
+        target: `${owner2}/${repo}@${args.rule_name}`,
+        action: `Create or change the branch protection rule "${args.rule_name}" in ${owner2}/${repo}. This changes who may push and merge.`
       };
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       const { profile: _p, owner: _o, repo: _r, rule_name, ...fields } = args;
-      const base = `${repoPath(owner, repo)}/branch_protections`;
+      const base = `${repoPath(owner2, repo)}/branch_protections`;
       const exists = await ctx.client.request({ path: `${base}/${encodeURIComponent(rule_name)}` }).then(() => true).catch((err) => {
         if (err instanceof GiteaError && err.code === "NOT_FOUND") return false;
         throw err;
@@ -58305,17 +58357,17 @@ var gitTools = [
     access: "admin",
     input: { ...profileShape, ...repoShape, rule_name: string2().min(1).max(255) },
     async confirm(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       return {
-        target: `${owner}/${repo}@${args.rule_name}`,
-        action: `Remove the branch protection rule "${args.rule_name}" from ${owner}/${repo}; the branch becomes unprotected.`
+        target: `${owner2}/${repo}@${args.rule_name}`,
+        action: `Remove the branch protection rule "${args.rule_name}" from ${owner2}/${repo}; the branch becomes unprotected.`
       };
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       await ctx.client.request({
         method: "DELETE",
-        path: `${repoPath(owner, repo)}/branch_protections/${encodeURIComponent(args.rule_name)}`
+        path: `${repoPath(owner2, repo)}/branch_protections/${encodeURIComponent(args.rule_name)}`
       });
       return { deleted: args.rule_name };
     }
@@ -58329,8 +58381,8 @@ var gitTools = [
     feature: "tag_protections",
     input: { ...profileShape, ...repoShape },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const res = await ctx.client.request({ path: `${repoPath(owner, repo)}/tag_protections` });
+      const { owner: owner2, repo } = await ctx.repo(args);
+      const res = await ctx.client.request({ path: `${repoPath(owner2, repo)}/tag_protections` });
       return { rules: res.data.map(slimBranchProtection) };
     }
   }),
@@ -58349,17 +58401,17 @@ var gitTools = [
       whitelist_teams: array(string2()).optional()
     },
     async confirm(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       return {
-        target: `${owner}/${repo}@${args.name_pattern}`,
-        action: `Protect tags matching "${args.name_pattern}" in ${owner}/${repo}.`
+        target: `${owner2}/${repo}@${args.name_pattern}`,
+        action: `Protect tags matching "${args.name_pattern}" in ${owner2}/${repo}.`
       };
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       const res = await ctx.client.request({
         method: "POST",
-        path: `${repoPath(owner, repo)}/tag_protections`,
+        path: `${repoPath(owner2, repo)}/tag_protections`,
         body: body({
           name_pattern: args.name_pattern,
           whitelist_usernames: args.whitelist_usernames,
@@ -58378,17 +58430,17 @@ var gitTools = [
     feature: "tag_protections",
     input: { ...profileShape, ...repoShape, id: number2().int().min(1) },
     async confirm(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       return {
-        target: `${owner}/${repo}#tag-protection-${args.id}`,
-        action: `Remove tag protection rule ${args.id} from ${owner}/${repo}.`
+        target: `${owner2}/${repo}#tag-protection-${args.id}`,
+        action: `Remove tag protection rule ${args.id} from ${owner2}/${repo}.`
       };
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       await ctx.client.request({
         method: "DELETE",
-        path: `${repoPath(owner, repo)}/tag_protections/${args.id}`
+        path: `${repoPath(owner2, repo)}/tag_protections/${args.id}`
       });
       return { deleted: args.id };
     }
@@ -58502,36 +58554,36 @@ function summarizeIssues(issues, now = Date.now()) {
     top_priority: top
   };
 }
-async function resolveLabelIds(ctx, owner, repo, labels) {
+async function resolveLabelIds(ctx, owner2, repo, labels) {
   if (labels.every((l) => typeof l === "number")) return labels;
   const all = await ctx.client.paginate(
-    `${repoPath(owner, repo)}/labels`,
+    `${repoPath(owner2, repo)}/labels`,
     {},
     { limit: 1e3 }
   );
-  const org = await ctx.client.paginate(`/orgs/${encodeURIComponent(owner)}/labels`, {}, { limit: 1e3 }).then((r) => r.items).catch(() => []);
+  const org = await ctx.client.paginate(`/orgs/${encodeURIComponent(owner2)}/labels`, {}, { limit: 1e3 }).then((r) => r.items).catch(() => []);
   const known = [...all.items, ...org];
   return labels.map((l) => {
     if (typeof l === "number") return l;
     const found = known.find((k) => k.name.toLowerCase() === l.toLowerCase());
     if (!found) {
-      throw new GiteaError("INVALID_INPUT", `Label "${l}" does not exist in ${owner}/${repo}.`, {
+      throw new GiteaError("INVALID_INPUT", `Label "${l}" does not exist in ${owner2}/${repo}.`, {
         hint: `Existing labels: ${known.map((k) => k.name).join(", ") || "(none)"}. Create it with label_create.`
       });
     }
     return found.id;
   });
 }
-async function resolveMilestoneId(ctx, owner, repo, milestone) {
+async function resolveMilestoneId(ctx, owner2, repo, milestone) {
   if (milestone === void 0 || typeof milestone === "number") return milestone;
   const res = await ctx.client.paginate(
-    `${repoPath(owner, repo)}/milestones`,
+    `${repoPath(owner2, repo)}/milestones`,
     { state: "all" },
     { limit: 1e3 }
   );
   const found = res.items.find((m) => m.title.toLowerCase() === milestone.toLowerCase());
   if (!found)
-    throw new GiteaError("INVALID_INPUT", `Milestone "${milestone}" does not exist in ${owner}/${repo}.`);
+    throw new GiteaError("INVALID_INPUT", `Milestone "${milestone}" does not exist in ${owner2}/${repo}.`);
   return found.id;
 }
 var labelsInput = array(union([string2().min(1).max(255), number2().int().min(1)])).max(50).describe("Label names or ids");
@@ -58560,9 +58612,9 @@ var issueTools = [
       ...pagingShape
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       const res = await ctx.client.paginate(
-        `${repoPath(owner, repo)}/issues`,
+        `${repoPath(owner2, repo)}/issues`,
         {
           state: args.state,
           labels: args.labels?.join(","),
@@ -58647,8 +58699,8 @@ var issueTools = [
       max_comments: number2().int().min(1).max(500).default(50)
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const base = `${repoPath(owner, repo)}/issues/${args.number}`;
+      const { owner: owner2, repo } = await ctx.repo(args);
+      const base = `${repoPath(owner2, repo)}/issues/${args.number}`;
       const issue2 = await ctx.client.request({ path: base });
       const out = slimIssue(issue2.data, true);
       if (args.include_comments) {
@@ -58677,16 +58729,16 @@ var issueTools = [
       ref: string2().max(255).optional().describe("Branch/tag the issue refers to.")
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       const res = await ctx.client.request({
         method: "POST",
-        path: `${repoPath(owner, repo)}/issues`,
+        path: `${repoPath(owner2, repo)}/issues`,
         body: body({
           title: args.title,
           body: args.body,
-          labels: args.labels ? await resolveLabelIds(ctx, owner, repo, args.labels) : void 0,
+          labels: args.labels ? await resolveLabelIds(ctx, owner2, repo, args.labels) : void 0,
           assignees: args.assignees,
-          milestone: await resolveMilestoneId(ctx, owner, repo, args.milestone),
+          milestone: await resolveMilestoneId(ctx, owner2, repo, args.milestone),
           due_date: args.due_date,
           ref: args.ref
         })
@@ -58714,12 +58766,12 @@ var issueTools = [
       state: _enum(["open", "closed"]).optional()
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       const payload = body({
         title: args.title,
         body: args.body,
         assignees: args.assignees,
-        milestone: args.remove_milestone ? 0 : await resolveMilestoneId(ctx, owner, repo, args.milestone),
+        milestone: args.remove_milestone ? 0 : await resolveMilestoneId(ctx, owner2, repo, args.milestone),
         due_date: args.due_date,
         unset_due_date: args.remove_due_date,
         state: args.state
@@ -58727,7 +58779,7 @@ var issueTools = [
       requireSomeFields(payload, `issue #${args.number}`);
       const res = await ctx.client.request({
         method: "PATCH",
-        path: `${repoPath(owner, repo)}/issues/${args.number}`,
+        path: `${repoPath(owner2, repo)}/issues/${args.number}`,
         body: payload
       });
       return { updated: Object.keys(payload), issue: slimIssue(res.data) };
@@ -58747,8 +58799,8 @@ var issueTools = [
       comment: string2().max(65535).optional()
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const base = `${repoPath(owner, repo)}/issues/${args.number}`;
+      const { owner: owner2, repo } = await ctx.repo(args);
+      const base = `${repoPath(owner2, repo)}/issues/${args.number}`;
       if (args.comment)
         await ctx.client.request({ method: "POST", path: `${base}/comments`, body: { body: args.comment } });
       const res = await ctx.client.request({ method: "PATCH", path: base, body: { state: args.state } });
@@ -58769,8 +58821,8 @@ var issueTools = [
       remove: array(string2()).max(20).optional()
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const base = `${repoPath(owner, repo)}/issues/${args.number}`;
+      const { owner: owner2, repo } = await ctx.repo(args);
+      const base = `${repoPath(owner2, repo)}/issues/${args.number}`;
       const current = await ctx.client.request({ path: base });
       const set = new Set((current.data.assignees ?? []).map((a) => a.login));
       for (const a of args.add ?? []) set.add(a);
@@ -58794,17 +58846,17 @@ var issueTools = [
       replace: labelsInput.optional().describe("Replace all labels with exactly these (empty array clears).")
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const base = `${repoPath(owner, repo)}/issues/${args.number}/labels`;
+      const { owner: owner2, repo } = await ctx.repo(args);
+      const base = `${repoPath(owner2, repo)}/issues/${args.number}/labels`;
       if (args.replace) {
-        const ids = await resolveLabelIds(ctx, owner, repo, args.replace);
+        const ids = await resolveLabelIds(ctx, owner2, repo, args.replace);
         await ctx.client.request({ method: "PUT", path: base, body: { labels: ids } });
       }
       if (args.add?.length) {
-        const ids = await resolveLabelIds(ctx, owner, repo, args.add);
+        const ids = await resolveLabelIds(ctx, owner2, repo, args.add);
         await ctx.client.request({ method: "POST", path: base, body: { labels: ids } });
       }
-      for (const id of args.remove?.length ? await resolveLabelIds(ctx, owner, repo, args.remove) : []) {
+      for (const id of args.remove?.length ? await resolveLabelIds(ctx, owner2, repo, args.remove) : []) {
         await ctx.client.request({ method: "DELETE", path: `${base}/${id}` });
       }
       const res = await ctx.client.request({ path: base });
@@ -58819,10 +58871,10 @@ var issueTools = [
     access: "write",
     input: { ...profileShape, ...repoShape, number: indexSchema(), body: string2().min(1).max(65535) },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       const res = await ctx.client.request({
         method: "POST",
-        path: `${repoPath(owner, repo)}/issues/${args.number}/comments`,
+        path: `${repoPath(owner2, repo)}/issues/${args.number}/comments`,
         body: { body: args.body }
       });
       return { created: true, comment: slimComment(res.data) };
@@ -58843,8 +58895,8 @@ var issueTools = [
       limit: number2().int().min(1).max(1e3).default(100)
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const comments = await ctx.client.list(`${repoPath(owner, repo)}/issues/${args.number}/comments`, {
+      const { owner: owner2, repo } = await ctx.repo(args);
+      const comments = await ctx.client.list(`${repoPath(owner2, repo)}/issues/${args.number}/comments`, {
         since: args.since,
         before: args.before
       });
@@ -58868,10 +58920,10 @@ var issueTools = [
       body: string2().min(1).max(65535)
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       const res = await ctx.client.request({
         method: "PATCH",
-        path: `${repoPath(owner, repo)}/issues/comments/${args.comment_id}`,
+        path: `${repoPath(owner2, repo)}/issues/comments/${args.comment_id}`,
         body: { body: args.body }
       });
       return { comment: slimComment(res.data) };
@@ -58885,17 +58937,17 @@ var issueTools = [
     access: "destructive",
     input: { ...profileShape, ...repoShape, comment_id: number2().int().min(1) },
     async confirm(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       return {
-        target: `${owner}/${repo}#comment-${args.comment_id}`,
-        action: `Delete comment ${args.comment_id} in ${owner}/${repo}.`
+        target: `${owner2}/${repo}#comment-${args.comment_id}`,
+        action: `Delete comment ${args.comment_id} in ${owner2}/${repo}.`
       };
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       await ctx.client.request({
         method: "DELETE",
-        path: `${repoPath(owner, repo)}/issues/comments/${args.comment_id}`
+        path: `${repoPath(owner2, repo)}/issues/comments/${args.comment_id}`
       });
       return { deleted: args.comment_id };
     }
@@ -58915,14 +58967,14 @@ var issueTools = [
       max_issues: number2().int().min(1).max(2e3).default(500)
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       const res = await ctx.client.paginate(
-        `${repoPath(owner, repo)}/issues`,
+        `${repoPath(owner2, repo)}/issues`,
         { state: args.state, type: "issues", labels: args.labels?.join(","), milestones: args.milestone },
         { limit: args.max_issues }
       );
       return {
-        repository: `${owner}/${repo}`,
+        repository: `${owner2}/${repo}`,
         state: args.state,
         analysed_all: !res.hasMore,
         total_matching: res.totalCount,
@@ -58938,9 +58990,9 @@ var issueTools = [
     access: "read",
     input: { ...profileShape, ...repoShape },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const res = await ctx.client.paginate(`${repoPath(owner, repo)}/labels`, {}, { limit: 1e3 });
-      const org = await ctx.client.paginate(`/orgs/${encodeURIComponent(owner)}/labels`, {}, { limit: 1e3 }).then((r) => r.items).catch(() => []);
+      const { owner: owner2, repo } = await ctx.repo(args);
+      const res = await ctx.client.paginate(`${repoPath(owner2, repo)}/labels`, {}, { limit: 1e3 });
+      const org = await ctx.client.paginate(`/orgs/${encodeURIComponent(owner2)}/labels`, {}, { limit: 1e3 }).then((r) => r.items).catch(() => []);
       return {
         labels: res.items.map(slimLabel),
         organization_labels: org.length ? org.map(slimLabel) : void 0
@@ -58962,10 +59014,10 @@ var issueTools = [
       exclusive: boolean2().optional()
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       const res = await ctx.client.request({
         method: "POST",
-        path: `${repoPath(owner, repo)}/labels`,
+        path: `${repoPath(owner2, repo)}/labels`,
         body: body({
           name: args.name,
           color: args.color,
@@ -58993,7 +59045,7 @@ var issueTools = [
       archived: boolean2().optional()
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       const payload = body({
         name: args.name,
         color: args.color,
@@ -59004,7 +59056,7 @@ var issueTools = [
       requireSomeFields(payload, "the label");
       const res = await ctx.client.request({
         method: "PATCH",
-        path: `${repoPath(owner, repo)}/labels/${args.id}`,
+        path: `${repoPath(owner2, repo)}/labels/${args.id}`,
         body: payload
       });
       return { label: slimLabel(res.data) };
@@ -59018,15 +59070,15 @@ var issueTools = [
     access: "destructive",
     input: { ...profileShape, ...repoShape, id: number2().int().min(1) },
     async confirm(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       return {
-        target: `${owner}/${repo}#label-${args.id}`,
-        action: `Delete label ${args.id} in ${owner}/${repo}; it is removed from all issues.`
+        target: `${owner2}/${repo}#label-${args.id}`,
+        action: `Delete label ${args.id} in ${owner2}/${repo}; it is removed from all issues.`
       };
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      await ctx.client.request({ method: "DELETE", path: `${repoPath(owner, repo)}/labels/${args.id}` });
+      const { owner: owner2, repo } = await ctx.repo(args);
+      await ctx.client.request({ method: "DELETE", path: `${repoPath(owner2, repo)}/labels/${args.id}` });
       return { deleted: args.id };
     }
   }),
@@ -59038,9 +59090,9 @@ var issueTools = [
     access: "read",
     input: { ...profileShape, ...repoShape, state: stateSchema, name: string2().optional(), ...pagingShape },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       const res = await ctx.client.paginate(
-        `${repoPath(owner, repo)}/milestones`,
+        `${repoPath(owner2, repo)}/milestones`,
         { state: args.state, name: args.name },
         args
       );
@@ -59061,10 +59113,10 @@ var issueTools = [
       due_on: dateSchema.optional()
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       const res = await ctx.client.request({
         method: "POST",
-        path: `${repoPath(owner, repo)}/milestones`,
+        path: `${repoPath(owner2, repo)}/milestones`,
         body: body({ title: args.title, description: args.description, due_on: args.due_on })
       });
       return { created: true, milestone: slimMilestone(res.data) };
@@ -59086,7 +59138,7 @@ var issueTools = [
       state: _enum(["open", "closed"]).optional()
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       const payload = body({
         title: args.title,
         description: args.description,
@@ -59096,7 +59148,7 @@ var issueTools = [
       requireSomeFields(payload, "the milestone");
       const res = await ctx.client.request({
         method: "PATCH",
-        path: `${repoPath(owner, repo)}/milestones/${args.id}`,
+        path: `${repoPath(owner2, repo)}/milestones/${args.id}`,
         body: payload
       });
       return { milestone: slimMilestone(res.data) };
@@ -59110,15 +59162,15 @@ var issueTools = [
     access: "destructive",
     input: { ...profileShape, ...repoShape, id: number2().int().min(1) },
     async confirm(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       return {
-        target: `${owner}/${repo}#milestone-${args.id}`,
-        action: `Delete milestone ${args.id} in ${owner}/${repo}.`
+        target: `${owner2}/${repo}#milestone-${args.id}`,
+        action: `Delete milestone ${args.id} in ${owner2}/${repo}.`
       };
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      await ctx.client.request({ method: "DELETE", path: `${repoPath(owner, repo)}/milestones/${args.id}` });
+      const { owner: owner2, repo } = await ctx.repo(args);
+      await ctx.client.request({ method: "DELETE", path: `${repoPath(owner2, repo)}/milestones/${args.id}` });
       return { deleted: args.id };
     }
   })
@@ -59473,16 +59525,16 @@ var orgTools = [
     access: "read",
     input: { ...profileShape, ...repoShape, ...pagingShape },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       const res = await ctx.client.paginate(
-        `${repoPath(owner, repo)}/collaborators`,
+        `${repoPath(owner2, repo)}/collaborators`,
         {},
         args
       );
       const withPerm = await Promise.all(
         res.items.map(async (u) => {
           const perm = await ctx.client.request({
-            path: `${repoPath(owner, repo)}/collaborators/${encodeURIComponent(u.login)}/permission`
+            path: `${repoPath(owner2, repo)}/collaborators/${encodeURIComponent(u.login)}/permission`
           }).then((r) => r.data).catch(() => void 0);
           return { login: u.login, permission: perm?.permission, role: perm?.role_name };
         })
@@ -59504,20 +59556,20 @@ var orgTools = [
       permission: permissionSchema.default("write")
     },
     async confirm(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       return {
-        target: `${owner}/${repo}:${args.username}`,
-        action: args.action === "add" ? `Give ${args.username} ${args.permission} access to ${owner}/${repo}.` : `Remove ${args.username}'s collaborator access to ${owner}/${repo}.`
+        target: `${owner2}/${repo}:${args.username}`,
+        action: args.action === "add" ? `Give ${args.username} ${args.permission} access to ${owner2}/${repo}.` : `Remove ${args.username}'s collaborator access to ${owner2}/${repo}.`
       };
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const path = `${repoPath(owner, repo)}/collaborators/${encodeURIComponent(args.username)}`;
+      const { owner: owner2, repo } = await ctx.repo(args);
+      const path = `${repoPath(owner2, repo)}/collaborators/${encodeURIComponent(args.username)}`;
       if (args.action === "add")
         await ctx.client.request({ method: "PUT", path, body: { permission: args.permission } });
       else await ctx.client.request({ method: "DELETE", path });
       return {
-        repository: `${owner}/${repo}`,
+        repository: `${owner2}/${repo}`,
         username: args.username,
         action: args.action,
         permission: args.action === "add" ? args.permission : void 0
@@ -59532,8 +59584,8 @@ var orgTools = [
     access: "read",
     input: { ...profileShape, ...repoShape },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const base = repoPath(owner, repo);
+      const { owner: owner2, repo } = await ctx.repo(args);
+      const base = repoPath(owner2, repo);
       const info = (await ctx.client.request({ path: base })).data;
       const [collaborators, teams, protections] = await Promise.all([
         ctx.client.paginate(`${base}/collaborators`, {}, { limit: 500 }).then(
@@ -59559,7 +59611,7 @@ var orgTools = [
       ]);
       const admins = Array.isArray(collaborators) ? collaborators.filter((c) => c.permission === "admin").map((c) => c.login) : void 0;
       return {
-        repository: `${owner}/${repo}`,
+        repository: `${owner2}/${repo}`,
         visibility: info.private ? "private" : "public",
         owner: info.owner.login,
         your_permissions: info.permissions,
@@ -59577,8 +59629,223 @@ var orgTools = [
   })
 ];
 
+// src/tools/modules/packages.ts
+import { open as open2 } from "node:fs/promises";
+import { basename, isAbsolute as isAbsolute3, relative as relative2, resolve as resolve3 } from "node:path";
+var M7 = "packages";
+var PACKAGE_TYPES = [
+  "alpine",
+  "cargo",
+  "chef",
+  "composer",
+  "conan",
+  "conda",
+  "container",
+  "cran",
+  "debian",
+  "generic",
+  "go",
+  "helm",
+  "maven",
+  "npm",
+  "nuget",
+  "pub",
+  "pypi",
+  "rpm",
+  "rubygems",
+  "swift",
+  "terraform",
+  "vagrant"
+];
+var slimPackage = (p) => compact({
+  id: p.id,
+  type: p.type,
+  name: p.name,
+  version: p.version,
+  repository: p.repository?.full_name,
+  creator: p.creator?.login,
+  created_at: p.created_at,
+  html_url: p.html_url
+});
+var typeSchema = _enum(PACKAGE_TYPES);
+var pkgName = string2().min(1).max(255).describe("Package name");
+var owner = ownerSchema.describe("User or organisation that owns the package");
+var seg = encodeURIComponent;
+var GENERIC_NAME = /^[A-Za-z0-9][A-Za-z0-9._+-]*$/;
+var packageTools = [
+  defineTool({
+    name: "package_list",
+    module: M7,
+    title: "List packages",
+    description: "Lists the packages (all registries: npm, container, maven, generic, \u2026) of a user or organisation.",
+    access: "read",
+    feature: "packages",
+    input: {
+      ...profileShape,
+      owner,
+      type: typeSchema.optional(),
+      query: string2().max(200).optional().describe("Filter by package name"),
+      ...pagingShape
+    },
+    async run(args, ctx) {
+      const res = await ctx.client.paginate(
+        `/packages/${seg(args.owner)}`,
+        { type: args.type, q: args.query },
+        args
+      );
+      return { has_more: res.hasMore, packages: res.items.map(slimPackage) };
+    }
+  }),
+  defineTool({
+    name: "package_get",
+    module: M7,
+    title: "Get package",
+    description: 'Shows a package: without `version` all its versions; with `version` (or "latest") that version and its files with sizes and SHA-256 checksums.',
+    access: "read",
+    feature: "packages",
+    input: {
+      ...profileShape,
+      owner,
+      type: typeSchema,
+      name: pkgName,
+      version: string2().max(255).optional()
+    },
+    async run(args, ctx) {
+      const base = `/packages/${seg(args.owner)}/${args.type}/${seg(args.name)}`;
+      if (!args.version) {
+        const res = await ctx.client.paginate(base, {}, { limit: 200 });
+        return { name: args.name, type: args.type, versions: res.items.map(slimPackage) };
+      }
+      const pkg = (await ctx.client.request({
+        path: args.version === "latest" ? `${base}/-/latest` : `${base}/${seg(args.version)}`
+      })).data;
+      const files = await ctx.client.request({
+        path: `${base}/${seg(pkg.version)}/files`
+      });
+      return {
+        ...slimPackage(pkg),
+        files: files.data.map((f) => ({ name: f.name, size: f.size, sha256: f.sha256 }))
+      };
+    }
+  }),
+  defineTool({
+    name: "package_upload_generic",
+    module: M7,
+    title: "Upload generic package",
+    description: "Publishes a local file (inside the working directory) as a file of a generic package version in the Gitea package registry. Needs the token scope write:package.",
+    access: "write",
+    feature: "packages",
+    input: {
+      ...profileShape,
+      owner,
+      name: string2().regex(GENERIC_NAME, 'letters, digits, ".", "_", "+", "-"').max(255),
+      version: string2().regex(GENERIC_NAME, 'letters, digits, ".", "_", "+", "-"').max(255),
+      file: string2().min(1).max(4096).describe("Local file, relative to the working directory"),
+      file_name: string2().regex(GENERIC_NAME, 'letters, digits, ".", "_", "+", "-"').max(255).optional().describe("File name in the package (default: local file name)")
+    },
+    async run(args, ctx) {
+      const full = isAbsolute3(args.file) ? resolve3(args.file) : resolve3(ctx.cwd, args.file);
+      const rel = relative2(resolve3(ctx.cwd), full);
+      if (rel.startsWith("..") || isAbsolute3(rel)) {
+        throw new GiteaError(
+          "INVALID_INPUT",
+          `Only files inside the working directory (${ctx.cwd}) can be uploaded.`
+        );
+      }
+      const handle = await open2(full, "r").catch(() => void 0);
+      if (!handle) throw new GiteaError("INVALID_INPUT", `${args.file} is not a readable file.`);
+      let data;
+      try {
+        const st = await handle.stat();
+        if (!st.isFile()) throw new GiteaError("INVALID_INPUT", `${args.file} is not a file.`);
+        if (st.size > 500 * 1024 * 1024) throw new GiteaError("INVALID_INPUT", "File is larger than 500 MB.");
+        data = await handle.readFile();
+      } finally {
+        await handle.close();
+      }
+      const fileName = args.file_name ?? basename(full);
+      if (!GENERIC_NAME.test(fileName)) {
+        throw new GiteaError(
+          "INVALID_INPUT",
+          `File name "${fileName}" is not allowed in generic packages; set file_name.`
+        );
+      }
+      await ctx.client.request({
+        method: "PUT",
+        root: true,
+        path: `api/packages/${seg(args.owner)}/generic/${seg(args.name)}/${seg(args.version)}/${seg(fileName)}`,
+        raw: data,
+        responseType: "text"
+      });
+      return {
+        uploaded: true,
+        owner: args.owner,
+        name: args.name,
+        version: args.version,
+        file: fileName,
+        bytes: data.length
+      };
+    }
+  }),
+  defineTool({
+    name: "package_link",
+    module: M7,
+    title: "Link or unlink package and repository",
+    description: "Links a package to a repository of the same owner (shown on the repository page), or removes the link.",
+    access: "write",
+    feature: "packages",
+    input: {
+      ...profileShape,
+      owner,
+      type: typeSchema,
+      name: pkgName,
+      repo: nameSchema("Repository").optional().describe('Repository to link (omit with action "unlink")'),
+      action: _enum(["link", "unlink"]).default("link")
+    },
+    async run(args, ctx) {
+      const base = `/packages/${seg(args.owner)}/${args.type}/${seg(args.name)}/-`;
+      if (args.action === "link") {
+        if (!args.repo) throw new GiteaError("INVALID_INPUT", "repo is required to link a package.");
+        await ctx.client.request({ method: "POST", path: `${base}/link/${seg(args.repo)}` });
+      } else {
+        await ctx.client.request({ method: "POST", path: `${base}/unlink` });
+      }
+      return { package: `${args.type}/${args.name}`, action: args.action, repository: args.repo };
+    }
+  }),
+  defineTool({
+    name: "package_delete",
+    module: M7,
+    title: "Delete package",
+    description: "Deletes one package version, or (without `version`) the whole package with all versions. Requires confirmation.",
+    access: "destructive",
+    feature: "packages",
+    input: {
+      ...profileShape,
+      owner,
+      type: typeSchema,
+      name: pkgName,
+      version: string2().max(255).optional()
+    },
+    confirm(args) {
+      return {
+        target: `${args.owner}/${args.type}/${args.name}${args.version ? `@${args.version}` : ""}`,
+        action: args.version ? `Delete version ${args.version} of package ${args.type}/${args.name} (${args.owner}).` : `Delete package ${args.type}/${args.name} of ${args.owner} with ALL versions.`
+      };
+    },
+    async run(args, ctx) {
+      const base = `/packages/${seg(args.owner)}/${args.type}/${seg(args.name)}`;
+      await ctx.client.request({
+        method: "DELETE",
+        path: args.version ? `${base}/${seg(args.version)}` : base
+      });
+      return { deleted: `${args.type}/${args.name}${args.version ? `@${args.version}` : ""}` };
+    }
+  })
+];
+
 // src/tools/modules/projects.ts
-var M7 = "projects";
+var M8 = "projects";
 var scopeShape = {
   scope: _enum(["repo", "org", "user"]).default("repo").describe(
     "Where the project lives: a repository (owner/repo), an organisation (org) or your user account."
@@ -59593,8 +59860,8 @@ async function projectsBase(ctx, args) {
     if (!args.org) throw new GiteaError("INVALID_INPUT", 'org is required for scope "org".');
     return `/orgs/${encodeURIComponent(args.org)}/projects`;
   }
-  const { owner, repo } = await ctx.repo(args);
-  return `${repoPath(owner, repo)}/projects`;
+  const { owner: owner2, repo } = await ctx.repo(args);
+  return `${repoPath(owner2, repo)}/projects`;
 }
 function slimProject(p) {
   return compact({
@@ -59631,11 +59898,11 @@ async function resolveColumn(ctx, base, id, ref) {
   return found;
 }
 async function issueIds(ctx, args, numbers) {
-  const { owner, repo } = await ctx.repo(args);
+  const { owner: owner2, repo } = await ctx.repo(args);
   const out = [];
   for (const n of numbers) {
     const res = await ctx.client.request({
-      path: `${repoPath(owner, repo)}/issues/${n}`
+      path: `${repoPath(owner2, repo)}/issues/${n}`
     });
     out.push({ number: res.data.number, id: res.data.id, title: res.data.title });
   }
@@ -59645,7 +59912,7 @@ var issueNumbers = array(indexSchema("issue or pull request")).min(1).max(100);
 var projectTools = [
   defineTool({
     name: "project_list",
-    module: M7,
+    module: M8,
     title: "List projects",
     description: "Lists the projects (kanban boards) of a repository, an organisation or your user account, with issue counts.",
     access: "read",
@@ -59664,7 +59931,7 @@ var projectTools = [
   }),
   defineTool({
     name: "project_get",
-    module: M7,
+    module: M8,
     title: "Show project board",
     description: 'Shows a project board: its columns in order and the issues and pull requests in each column. Use it to answer "what is in progress / what is left".',
     access: "read",
@@ -59698,7 +59965,7 @@ var projectTools = [
   }),
   defineTool({
     name: "project_create",
-    module: M7,
+    module: M8,
     title: "Create project",
     description: 'Creates a project (kanban board) in a repository, an organisation or your user account. Use a template ("basic_kanban": To Do / In Progress / Done, "bug_triage") or pass your own column titles.',
     access: "write",
@@ -59740,7 +60007,7 @@ var projectTools = [
   }),
   defineTool({
     name: "project_update",
-    module: M7,
+    module: M8,
     title: "Edit or close project",
     description: "Renames a project, changes its description or card type, or closes/reopens it.",
     access: "write",
@@ -59774,7 +60041,7 @@ var projectTools = [
   }),
   defineTool({
     name: "project_delete",
-    module: M7,
+    module: M8,
     title: "Delete project",
     description: "Deletes a project board (the issues themselves stay). Requires confirmation.",
     access: "destructive",
@@ -59796,7 +60063,7 @@ var projectTools = [
   }),
   defineTool({
     name: "project_column_create",
-    module: M7,
+    module: M8,
     title: "Add project column",
     description: "Adds a column to a project board, optionally with a colour.",
     access: "write",
@@ -59821,7 +60088,7 @@ var projectTools = [
   }),
   defineTool({
     name: "project_column_update",
-    module: M7,
+    module: M8,
     title: "Edit project column",
     description: "Renames or recolours a column, or makes it the default column for new cards.",
     access: "write",
@@ -59857,7 +60124,7 @@ var projectTools = [
   }),
   defineTool({
     name: "project_column_delete",
-    module: M7,
+    module: M8,
     title: "Delete project column",
     description: "Deletes a column from a project board; its cards move to the default column. Requires confirmation.",
     access: "destructive",
@@ -59880,7 +60147,7 @@ var projectTools = [
   }),
   defineTool({
     name: "project_issue_add",
-    module: M7,
+    module: M8,
     title: "Add issues to project",
     description: "Adds issues or pull requests (by number, from owner/repo) to a project board column (title or id; default column if omitted).",
     access: "write",
@@ -59908,7 +60175,7 @@ var projectTools = [
   }),
   defineTool({
     name: "project_issue_move",
-    module: M7,
+    module: M8,
     title: "Move issues on project board",
     description: 'Moves issues or pull requests (by number) to another column of a project board, e.g. to "In Progress" or "Done".',
     access: "write",
@@ -59937,7 +60204,7 @@ var projectTools = [
   }),
   defineTool({
     name: "project_issue_remove",
-    module: M7,
+    module: M8,
     title: "Remove issues from project",
     description: "Removes issues or pull requests (by number) from a project board column; the issues themselves are kept.",
     access: "write",
@@ -59966,14 +60233,14 @@ var projectTools = [
 ];
 
 // src/tools/modules/pulls.ts
-var M8 = "pull_requests";
+var M9 = "pull_requests";
 function globMatch(pattern, name) {
   const escape2 = (s) => s.replace(/[.+?^${}()|[\]\\]/g, "\\$&");
   const source = pattern.split("**").map((part) => part.split("*").map(escape2).join("[^/]*")).join(".*");
   return new RegExp(`^${source}$`).test(name);
 }
-async function mergeReadiness(ctx, owner, repo, index) {
-  const base = repoPath(owner, repo);
+async function mergeReadiness(ctx, owner2, repo, index) {
+  const base = repoPath(owner2, repo);
   const pr = (await ctx.client.request({ path: `${base}/pulls/${index}` })).data;
   const [reviews, status, protections] = await Promise.all([
     ctx.client.paginate(`${base}/pulls/${index}/reviews`, {}, { limit: 200 }).then((r) => r.items),
@@ -60042,7 +60309,7 @@ async function mergeReadiness(ctx, owner, repo, index) {
 var pullTools = [
   defineTool({
     name: "pr_list",
-    module: M8,
+    module: M9,
     title: "List pull requests",
     description: "Lists pull requests filtered by state, base branch, labels, milestone or author, with sorting.",
     access: "read",
@@ -60066,9 +60333,9 @@ var pullTools = [
       ...pagingShape
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       const res = await ctx.client.paginate(
-        `${repoPath(owner, repo)}/pulls`,
+        `${repoPath(owner2, repo)}/pulls`,
         {
           state: args.state,
           base_branch: args.base_branch,
@@ -60084,7 +60351,7 @@ var pullTools = [
   }),
   defineTool({
     name: "pr_get",
-    module: M8,
+    module: M9,
     title: "Get pull request",
     description: "Returns a pull request with description, branches, mergeability, reviewers and change counts. Use pr_diff for the patch and pr_merge_check for merge readiness. Pass number 0 or omit it to get the most recently updated open pull request.",
     access: "read",
@@ -60094,24 +60361,24 @@ var pullTools = [
       number: number2().int().min(0).default(0).describe("Pull request number; 0 = latest")
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       let number3 = args.number;
       if (number3 === 0) {
         const latest = await ctx.client.request({
-          path: `${repoPath(owner, repo)}/pulls`,
+          path: `${repoPath(owner2, repo)}/pulls`,
           query: { state: "all", sort: "recentupdate", limit: 1 }
         });
         const first = latest.data[0];
-        if (!first) throw new GiteaError("NOT_FOUND", `${owner}/${repo} has no pull requests.`);
+        if (!first) throw new GiteaError("NOT_FOUND", `${owner2}/${repo} has no pull requests.`);
         number3 = first.number;
       }
-      const res = await ctx.client.request({ path: `${repoPath(owner, repo)}/pulls/${number3}` });
+      const res = await ctx.client.request({ path: `${repoPath(owner2, repo)}/pulls/${number3}` });
       return slimPull(res.data, true);
     }
   }),
   defineTool({
     name: "pr_create",
-    module: M8,
+    module: M9,
     title: "Create pull request",
     description: 'Opens a pull request from `head` into `base` (default: the default branch). For a branch in a fork use "owner:branch" as head. Push local branches first with local_branch_push.',
     access: "write",
@@ -60130,15 +60397,15 @@ var pullTools = [
       milestone: union([string2(), number2().int()]).optional()
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       let baseBranch = args.base;
       if (!baseBranch) {
-        baseBranch = (await ctx.client.request({ path: repoPath(owner, repo) })).data.default_branch;
+        baseBranch = (await ctx.client.request({ path: repoPath(owner2, repo) })).data.default_branch;
       }
       const title = args.draft && !/^(wip|\[wip\])[:\s]/i.test(args.title) ? `WIP: ${args.title}` : args.title;
       const res = await ctx.client.request({
         method: "POST",
-        path: `${repoPath(owner, repo)}/pulls`,
+        path: `${repoPath(owner2, repo)}/pulls`,
         body: body({
           head: args.head,
           base: baseBranch,
@@ -60147,8 +60414,8 @@ var pullTools = [
           assignees: args.assignees,
           reviewers: args.reviewers,
           team_reviewers: args.team_reviewers,
-          labels: args.labels ? await resolveLabelIds(ctx, owner, repo, args.labels) : void 0,
-          milestone: await resolveMilestoneId(ctx, owner, repo, args.milestone)
+          labels: args.labels ? await resolveLabelIds(ctx, owner2, repo, args.labels) : void 0,
+          milestone: await resolveMilestoneId(ctx, owner2, repo, args.milestone)
         })
       });
       return { created: true, pull: slimPull(res.data) };
@@ -60156,7 +60423,7 @@ var pullTools = [
   }),
   defineTool({
     name: "pr_update",
-    module: M8,
+    module: M9,
     title: "Edit pull request",
     description: "Edits title, description, base branch, assignees, labels, milestone or state of a pull request.",
     access: "write",
@@ -60174,21 +60441,21 @@ var pullTools = [
       allow_maintainer_edit: boolean2().optional()
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       const payload = body({
         title: args.title,
         body: args.body,
         base: args.base,
         assignees: args.assignees,
-        labels: args.labels ? await resolveLabelIds(ctx, owner, repo, args.labels) : void 0,
-        milestone: await resolveMilestoneId(ctx, owner, repo, args.milestone),
+        labels: args.labels ? await resolveLabelIds(ctx, owner2, repo, args.labels) : void 0,
+        milestone: await resolveMilestoneId(ctx, owner2, repo, args.milestone),
         state: args.state,
         allow_maintainer_edit: args.allow_maintainer_edit
       });
       requireSomeFields(payload, `pull request #${args.number}`);
       const res = await ctx.client.request({
         method: "PATCH",
-        path: `${repoPath(owner, repo)}/pulls/${args.number}`,
+        path: `${repoPath(owner2, repo)}/pulls/${args.number}`,
         body: payload
       });
       return { updated: Object.keys(payload), pull: slimPull(res.data) };
@@ -60196,7 +60463,7 @@ var pullTools = [
   }),
   defineTool({
     name: "pr_close",
-    module: M8,
+    module: M9,
     title: "Close pull request",
     description: "Closes a pull request without merging, optionally with a comment. It can be reopened with pr_update.",
     access: "write",
@@ -60207,8 +60474,8 @@ var pullTools = [
       comment: string2().max(65535).optional()
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const base = repoPath(owner, repo);
+      const { owner: owner2, repo } = await ctx.repo(args);
+      const base = repoPath(owner2, repo);
       if (args.comment) {
         await ctx.client.request({
           method: "POST",
@@ -60226,7 +60493,7 @@ var pullTools = [
   }),
   defineTool({
     name: "pr_diff",
-    module: M8,
+    module: M9,
     title: "Get pull request diff",
     description: "Returns the unified diff of a pull request with per-file addition/deletion counts. Use `files` to show only some files of large diffs.",
     access: "read",
@@ -60238,9 +60505,9 @@ var pullTools = [
       max_chars: number2().int().min(1e3).max(5e5).default(8e4)
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       const res = await ctx.client.request({
-        path: `${repoPath(owner, repo)}/pulls/${args.number}.diff`,
+        path: `${repoPath(owner2, repo)}/pulls/${args.number}.diff`,
         responseType: "text",
         maxBytes: 30 * 1024 * 1024
       });
@@ -60249,15 +60516,15 @@ var pullTools = [
   }),
   defineTool({
     name: "pr_files",
-    module: M8,
+    module: M9,
     title: "List changed files of a pull request",
     description: "Lists the files changed by a pull request with status and line counts.",
     access: "read",
     input: { ...profileShape, ...repoShape, number: indexSchema("pull request"), ...pagingShape },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       const res = await ctx.client.paginate(
-        `${repoPath(owner, repo)}/pulls/${args.number}/files`,
+        `${repoPath(owner2, repo)}/pulls/${args.number}/files`,
         {},
         args
       );
@@ -60278,15 +60545,15 @@ var pullTools = [
   }),
   defineTool({
     name: "pr_commits",
-    module: M8,
+    module: M9,
     title: "List pull request commits",
     description: "Lists the commits contained in a pull request.",
     access: "read",
     input: { ...profileShape, ...repoShape, number: indexSchema("pull request"), ...pagingShape },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       const res = await ctx.client.paginate(
-        `${repoPath(owner, repo)}/pulls/${args.number}/commits`,
+        `${repoPath(owner2, repo)}/pulls/${args.number}/commits`,
         { verification: false, files: false },
         args
       );
@@ -60295,7 +60562,7 @@ var pullTools = [
   }),
   defineTool({
     name: "pr_reviews",
-    module: M8,
+    module: M9,
     title: "Get pull request reviews",
     description: "Lists the reviews of a pull request with their state and, optionally, their inline comments.",
     access: "read",
@@ -60306,8 +60573,8 @@ var pullTools = [
       include_comments: boolean2().default(true)
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const base = `${repoPath(owner, repo)}/pulls/${args.number}/reviews`;
+      const { owner: owner2, repo } = await ctx.repo(args);
+      const base = `${repoPath(owner2, repo)}/pulls/${args.number}/reviews`;
       const reviews = await ctx.client.paginate(base, {}, { limit: 200 });
       const out = [];
       for (const r of reviews.items) {
@@ -60318,13 +60585,13 @@ var pullTools = [
         }
         out.push(item);
       }
-      const conversation = await ctx.client.list(`${repoPath(owner, repo)}/issues/${args.number}/comments`);
+      const conversation = await ctx.client.list(`${repoPath(owner2, repo)}/issues/${args.number}/comments`);
       return { reviews: out, conversation: conversation.slice(-100).map(slimComment) };
     }
   }),
   defineTool({
     name: "pr_review_create",
-    module: M8,
+    module: M9,
     title: "Review pull request",
     description: "Submits a review: APPROVED, REQUEST_CHANGES or COMMENT, with an overall body and optional inline comments (path + line in the new file, or old_line for removed lines). Use PENDING to create a draft review.",
     access: "write",
@@ -60345,7 +60612,7 @@ var pullTools = [
       commit_id: string2().optional().describe("Commit the review refers to (default: head).")
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       if (args.event === "REQUEST_CHANGES" && !args.body) {
         throw new GiteaError("INVALID_INPUT", "A body is required when requesting changes.");
       }
@@ -60356,7 +60623,7 @@ var pullTools = [
       });
       const res = await ctx.client.request({
         method: "POST",
-        path: `${repoPath(owner, repo)}/pulls/${args.number}/reviews`,
+        path: `${repoPath(owner2, repo)}/pulls/${args.number}/reviews`,
         body: body({ event: args.event, body: args.body, comments, commit_id: args.commit_id })
       });
       return { created: true, review: slimReview(res.data) };
@@ -60364,7 +60631,7 @@ var pullTools = [
   }),
   defineTool({
     name: "pr_review_submit",
-    module: M8,
+    module: M9,
     title: "Submit pending review",
     description: "Submits a previously created PENDING review with a final verdict.",
     access: "write",
@@ -60377,10 +60644,10 @@ var pullTools = [
       body: string2().max(65535).optional()
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       const res = await ctx.client.request({
         method: "POST",
-        path: `${repoPath(owner, repo)}/pulls/${args.number}/reviews/${args.review_id}`,
+        path: `${repoPath(owner2, repo)}/pulls/${args.number}/reviews/${args.review_id}`,
         body: body({ event: args.event, body: args.body })
       });
       return { review: slimReview(res.data) };
@@ -60388,7 +60655,7 @@ var pullTools = [
   }),
   defineTool({
     name: "pr_request_reviewers",
-    module: M8,
+    module: M9,
     title: "Request reviewers",
     description: "Requests reviews from users and/or teams, or removes review requests.",
     access: "write",
@@ -60401,13 +60668,13 @@ var pullTools = [
       remove: boolean2().default(false).describe("Remove these review requests instead of adding them.")
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       if (!args.reviewers?.length && !args.team_reviewers?.length) {
         throw new GiteaError("INVALID_INPUT", "Provide reviewers or team_reviewers.");
       }
       await ctx.client.request({
         method: args.remove ? "DELETE" : "POST",
-        path: `${repoPath(owner, repo)}/pulls/${args.number}/requested_reviewers`,
+        path: `${repoPath(owner2, repo)}/pulls/${args.number}/requested_reviewers`,
         body: body({ reviewers: args.reviewers, team_reviewers: args.team_reviewers })
       });
       return {
@@ -60419,19 +60686,19 @@ var pullTools = [
   }),
   defineTool({
     name: "pr_merge_check",
-    module: M8,
+    module: M9,
     title: "Check merge readiness",
     description: "Checks whether a pull request can be merged: open/draft state, merge conflicts, required approvals and status checks from branch protection, and change requests. Returns blockers and warnings.",
     access: "read",
     input: { ...profileShape, ...repoShape, number: indexSchema("pull request") },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      return mergeReadiness(ctx, owner, repo, args.number);
+      const { owner: owner2, repo } = await ctx.repo(args);
+      return mergeReadiness(ctx, owner2, repo, args.number);
     }
   }),
   defineTool({
     name: "pr_merge",
-    module: M8,
+    module: M9,
     title: "Merge pull request",
     description: "Merges a pull request with the chosen style (merge, rebase, rebase-merge, squash, fast-forward-only). Runs the merge readiness check first and refuses when blockers exist. Merging changes the target branch, so the user must confirm.",
     access: "write",
@@ -60446,16 +60713,16 @@ var pullTools = [
       merge_when_checks_succeed: boolean2().default(false).describe("Schedule auto-merge once checks pass.")
     },
     async confirm(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const pr = (await ctx.client.request({ path: `${repoPath(owner, repo)}/pulls/${args.number}` })).data;
+      const { owner: owner2, repo } = await ctx.repo(args);
+      const pr = (await ctx.client.request({ path: `${repoPath(owner2, repo)}/pulls/${args.number}` })).data;
       return {
-        target: `${owner}/${repo}#${args.number}`,
-        action: `Merge pull request #${args.number} "${pr.title}" (${pr.head.ref} \u2192 ${pr.base.ref}) in ${owner}/${repo} using "${args.style}"${args.delete_branch_after_merge ? " and delete the head branch" : ""}.`
+        target: `${owner2}/${repo}#${args.number}`,
+        action: `Merge pull request #${args.number} "${pr.title}" (${pr.head.ref} \u2192 ${pr.base.ref}) in ${owner2}/${repo} using "${args.style}"${args.delete_branch_after_merge ? " and delete the head branch" : ""}.`
       };
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const readiness = await mergeReadiness(ctx, owner, repo, args.number);
+      const { owner: owner2, repo } = await ctx.repo(args);
+      const readiness = await mergeReadiness(ctx, owner2, repo, args.number);
       if (!readiness.ready_to_merge && !args.merge_when_checks_succeed) {
         throw new GiteaError("CONFLICT", `Pull request #${args.number} is not ready to merge.`, {
           details: { blockers: readiness.blockers },
@@ -60465,7 +60732,7 @@ var pullTools = [
       const head = readiness.pull.head_sha;
       await ctx.client.request({
         method: "POST",
-        path: `${repoPath(owner, repo)}/pulls/${args.number}/merge`,
+        path: `${repoPath(owner2, repo)}/pulls/${args.number}/merge`,
         body: body({
           // Field names as in the OpenAPI document; Gitea decodes JSON keys case-insensitively, so
           // older releases that declared "Do"/"MergeTitleField" accept them as well.
@@ -60477,7 +60744,7 @@ var pullTools = [
           head_commit_id: head
         })
       });
-      const after = await ctx.client.request({ path: `${repoPath(owner, repo)}/pulls/${args.number}` });
+      const after = await ctx.client.request({ path: `${repoPath(owner2, repo)}/pulls/${args.number}` });
       return {
         merged: after.data.merged ?? false,
         scheduled: args.merge_when_checks_succeed || void 0,
@@ -60487,7 +60754,7 @@ var pullTools = [
   }),
   defineTool({
     name: "pr_update_branch",
-    module: M8,
+    module: M9,
     title: "Update pull request branch",
     description: "Updates the head branch of a pull request with the latest changes of the base branch (merge or rebase).",
     access: "write",
@@ -60499,10 +60766,10 @@ var pullTools = [
       style: _enum(["merge", "rebase"]).default("merge")
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       await ctx.client.request({
         method: "POST",
-        path: `${repoPath(owner, repo)}/pulls/${args.number}/update`,
+        path: `${repoPath(owner2, repo)}/pulls/${args.number}/update`,
         query: { style: args.style }
       });
       return { updated: true, number: args.number, style: args.style };
@@ -60512,8 +60779,8 @@ var pullTools = [
 
 // src/tools/modules/releases.ts
 import { openAsBlob, statSync as statSync2 } from "node:fs";
-import { basename, isAbsolute as isAbsolute3, relative as relative2, resolve as resolve3 } from "node:path";
-var M9 = "releases";
+import { basename as basename2, isAbsolute as isAbsolute4, relative as relative3, resolve as resolve4 } from "node:path";
+var M10 = "releases";
 var tagInput = string2().min(1).max(255).describe("Tag name, e.g. v1.2.0");
 var releaseRef = union([number2().int().min(1), string2().min(1).max(255)]).describe("Release id or tag name");
 var SECTION_TITLES = {
@@ -60552,14 +60819,14 @@ function buildReleaseNotes(commits, opts) {
   if (opts.previousTag && opts.compareUrl) parts.push(`**Full changelog:** ${opts.compareUrl}`);
   return parts.join("\n").trim();
 }
-async function getRelease(ctx, owner, repo, ref) {
-  const base = `${repoPath(owner, repo)}/releases`;
+async function getRelease(ctx, owner2, repo, ref) {
+  const base = `${repoPath(owner2, repo)}/releases`;
   const path = typeof ref === "number" ? `${base}/${ref}` : ref === "latest" ? `${base}/latest` : `${base}/tags/${encodeURIComponent(ref)}`;
   return (await ctx.client.request({ path })).data;
 }
-async function previousReleaseTag(ctx, owner, repo, tag, includePrerelease) {
+async function previousReleaseTag(ctx, owner2, repo, tag, includePrerelease) {
   const res = await ctx.client.paginate(
-    `${repoPath(owner, repo)}/releases`,
+    `${repoPath(owner2, repo)}/releases`,
     { draft: false },
     { limit: 100 }
   );
@@ -60568,29 +60835,29 @@ async function previousReleaseTag(ctx, owner, repo, tag, includePrerelease) {
   const candidates = idx >= 0 ? sorted.slice(idx + 1) : sorted;
   return candidates.find((r) => r.tag_name !== tag)?.tag_name;
 }
-async function commitsBetween(ctx, owner, repo, base, head) {
+async function commitsBetween(ctx, owner2, repo, base, head) {
   if (!base) {
     const res2 = await ctx.client.paginate(
-      `${repoPath(owner, repo)}/commits`,
+      `${repoPath(owner2, repo)}/commits`,
       { sha: head, stat: false, verification: false, files: false },
       { limit: 500 }
     );
     return res2.items;
   }
   const res = await ctx.client.request({
-    path: `${repoPath(owner, repo)}/compare/${encodeURIComponent(base)}...${encodeURIComponent(head)}`
+    path: `${repoPath(owner2, repo)}/compare/${encodeURIComponent(base)}...${encodeURIComponent(head)}`
   });
   return res.data.commits ?? [];
 }
-async function generateNotes(ctx, owner, repo, tag, target, previous, includePrerelease) {
-  const prev = previous ?? await previousReleaseTag(ctx, owner, repo, tag, includePrerelease);
-  const tagExists = await ctx.client.request({ path: `${repoPath(owner, repo)}/tags/${encodeURIComponent(tag)}` }).then(() => true).catch((err) => {
+async function generateNotes(ctx, owner2, repo, tag, target, previous, includePrerelease) {
+  const prev = previous ?? await previousReleaseTag(ctx, owner2, repo, tag, includePrerelease);
+  const tagExists = await ctx.client.request({ path: `${repoPath(owner2, repo)}/tags/${encodeURIComponent(tag)}` }).then(() => true).catch((err) => {
     if (err instanceof GiteaError && err.code === "NOT_FOUND") return false;
     throw err;
   });
-  const head = (tagExists ? tag : target) ?? (await ctx.client.request({ path: repoPath(owner, repo) })).data.default_branch;
-  const commits = await commitsBetween(ctx, owner, repo, prev, head);
-  const compareUrl = prev ? new URL(`${owner}/${repo}/compare/${prev}...${tag}`, ctx.profile.baseUrl).href : void 0;
+  const head = (tagExists ? tag : target) ?? (await ctx.client.request({ path: repoPath(owner2, repo) })).data.default_branch;
+  const commits = await commitsBetween(ctx, owner2, repo, prev, head);
+  const compareUrl = prev ? new URL(`${owner2}/${repo}/compare/${prev}...${tag}`, ctx.profile.baseUrl).href : void 0;
   return {
     previous_tag: prev,
     commit_count: commits.length,
@@ -60598,9 +60865,9 @@ async function generateNotes(ctx, owner, repo, tag, target, previous, includePre
   };
 }
 function safeLocalFile(cwd, requested) {
-  const full = isAbsolute3(requested) ? resolve3(requested) : resolve3(cwd, requested);
-  const rel = relative2(resolve3(cwd), full);
-  if (rel.startsWith("..") || isAbsolute3(rel)) {
+  const full = isAbsolute4(requested) ? resolve4(requested) : resolve4(cwd, requested);
+  const rel = relative3(resolve4(cwd), full);
+  if (rel.startsWith("..") || isAbsolute4(rel)) {
     throw new GiteaError(
       "INVALID_INPUT",
       `Only files inside the working directory (${cwd}) can be uploaded.`,
@@ -60616,7 +60883,7 @@ function safeLocalFile(cwd, requested) {
 var releaseTools = [
   defineTool({
     name: "release_list",
-    module: M9,
+    module: M10,
     title: "List releases",
     description: "Lists releases (newest first), optionally excluding drafts or pre-releases.",
     access: "read",
@@ -60629,9 +60896,9 @@ var releaseTools = [
       ...pagingShape
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       const res = await ctx.client.paginate(
-        `${repoPath(owner, repo)}/releases`,
+        `${repoPath(owner2, repo)}/releases`,
         { draft: args.draft, "pre-release": args.prerelease },
         args
       );
@@ -60644,19 +60911,19 @@ var releaseTools = [
   }),
   defineTool({
     name: "release_get",
-    module: M9,
+    module: M10,
     title: "Get release",
     description: 'Returns a release by id, tag name, or "latest" with notes and assets.',
     access: "read",
     input: { ...profileShape, ...repoShape, release: releaseRef.default("latest") },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      return slimRelease(await getRelease(ctx, owner, repo, args.release));
+      const { owner: owner2, repo } = await ctx.repo(args);
+      return slimRelease(await getRelease(ctx, owner2, repo, args.release));
     }
   }),
   defineTool({
     name: "release_notes_generate",
-    module: M9,
+    module: M10,
     title: "Generate release notes",
     description: "Generates Markdown release notes for a tag (or a target branch/commit that will be tagged) from the commits since the previous release, grouped by Conventional Commit type. Does not change anything.",
     access: "read",
@@ -60669,10 +60936,10 @@ var releaseTools = [
       include_prereleases: boolean2().default(false)
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       return generateNotes(
         ctx,
-        owner,
+        owner2,
         repo,
         args.tag,
         args.target,
@@ -60683,7 +60950,7 @@ var releaseTools = [
   }),
   defineTool({
     name: "release_create",
-    module: M9,
+    module: M10,
     title: "Create release",
     description: "Creates a release for a tag. If the tag does not exist it is created on `target` (default branch). Set generate_notes to build the notes from commits since the previous release. Use draft or prerelease for unfinished versions.",
     access: "write",
@@ -60701,11 +60968,11 @@ var releaseTools = [
       tag_message: string2().max(1e4).optional().describe("Annotation for a newly created tag")
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       let notes = args.body;
       let generated;
       if (args.generate_notes) {
-        const g = await generateNotes(ctx, owner, repo, args.tag, args.target, args.previous_tag, false);
+        const g = await generateNotes(ctx, owner2, repo, args.tag, args.target, args.previous_tag, false);
         notes = notes ? `${notes}
 
 ${g.notes}` : g.notes;
@@ -60714,7 +60981,7 @@ ${g.notes}` : g.notes;
       const prerelease = args.prerelease ?? /-(alpha|beta|rc|pre|preview|dev)/i.test(args.tag);
       const res = await ctx.client.request({
         method: "POST",
-        path: `${repoPath(owner, repo)}/releases`,
+        path: `${repoPath(owner2, repo)}/releases`,
         body: body({
           tag_name: args.tag,
           target_commitish: args.target,
@@ -60730,7 +60997,7 @@ ${g.notes}` : g.notes;
   }),
   defineTool({
     name: "release_update",
-    module: M9,
+    module: M10,
     title: "Edit release",
     description: "Edits a release: title, notes, tag, target, draft or pre-release flag (e.g. publish a draft).",
     access: "write",
@@ -60746,8 +61013,8 @@ ${g.notes}` : g.notes;
       prerelease: boolean2().optional()
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const rel = await getRelease(ctx, owner, repo, args.release);
+      const { owner: owner2, repo } = await ctx.repo(args);
+      const rel = await getRelease(ctx, owner2, repo, args.release);
       const payload = body({
         name: args.name,
         body: args.body,
@@ -60759,7 +61026,7 @@ ${g.notes}` : g.notes;
       requireSomeFields(payload, "the release");
       const res = await ctx.client.request({
         method: "PATCH",
-        path: `${repoPath(owner, repo)}/releases/${rel.id}`,
+        path: `${repoPath(owner2, repo)}/releases/${rel.id}`,
         body: payload
       });
       return { release: slimRelease(res.data) };
@@ -60767,26 +61034,26 @@ ${g.notes}` : g.notes;
   }),
   defineTool({
     name: "release_delete",
-    module: M9,
+    module: M10,
     title: "Delete release",
     description: "Deletes a release and its assets (the git tag is kept unless delete_tag is set). Requires confirmation.",
     access: "destructive",
     input: { ...profileShape, ...repoShape, release: releaseRef, delete_tag: boolean2().default(false) },
     async confirm(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       return {
-        target: `${owner}/${repo}@${String(args.release)}`,
-        action: `Delete release ${String(args.release)} of ${owner}/${repo} with its assets${args.delete_tag ? " AND its git tag" : ""}.`
+        target: `${owner2}/${repo}@${String(args.release)}`,
+        action: `Delete release ${String(args.release)} of ${owner2}/${repo} with its assets${args.delete_tag ? " AND its git tag" : ""}.`
       };
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const rel = await getRelease(ctx, owner, repo, args.release);
-      await ctx.client.request({ method: "DELETE", path: `${repoPath(owner, repo)}/releases/${rel.id}` });
+      const { owner: owner2, repo } = await ctx.repo(args);
+      const rel = await getRelease(ctx, owner2, repo, args.release);
+      await ctx.client.request({ method: "DELETE", path: `${repoPath(owner2, repo)}/releases/${rel.id}` });
       if (args.delete_tag) {
         await ctx.client.request({
           method: "DELETE",
-          path: `${repoPath(owner, repo)}/tags/${encodeURIComponent(rel.tag_name)}`
+          path: `${repoPath(owner2, repo)}/tags/${encodeURIComponent(rel.tag_name)}`
         });
       }
       return { deleted: rel.tag_name, tag_deleted: args.delete_tag };
@@ -60794,23 +61061,23 @@ ${g.notes}` : g.notes;
   }),
   defineTool({
     name: "release_asset_list",
-    module: M9,
+    module: M10,
     title: "List release assets",
     description: "Lists the files attached to a release.",
     access: "read",
     input: { ...profileShape, ...repoShape, release: releaseRef },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const rel = await getRelease(ctx, owner, repo, args.release);
+      const { owner: owner2, repo } = await ctx.repo(args);
+      const rel = await getRelease(ctx, owner2, repo, args.release);
       const res = await ctx.client.request({
-        path: `${repoPath(owner, repo)}/releases/${rel.id}/assets`
+        path: `${repoPath(owner2, repo)}/releases/${rel.id}/assets`
       });
       return { release: rel.tag_name, assets: res.data.map(slimAsset) };
     }
   }),
   defineTool({
     name: "release_asset_upload",
-    module: M9,
+    module: M10,
     title: "Upload release asset",
     description: "Uploads a local file (inside the working directory) as an asset of a release.",
     access: "write",
@@ -60822,15 +61089,15 @@ ${g.notes}` : g.notes;
       name: string2().max(255).optional().describe("Asset name (default: file name)")
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const rel = await getRelease(ctx, owner, repo, args.release);
+      const { owner: owner2, repo } = await ctx.repo(args);
+      const rel = await getRelease(ctx, owner2, repo, args.release);
       const full = safeLocalFile(ctx.cwd, args.file);
-      const name = args.name ?? basename(full);
+      const name = args.name ?? basename2(full);
       const form = new import_undici.FormData();
       form.append("attachment", await openAsBlob(full), name);
       const res = await ctx.client.request({
         method: "POST",
-        path: `${repoPath(owner, repo)}/releases/${rel.id}/assets`,
+        path: `${repoPath(owner2, repo)}/releases/${rel.id}/assets`,
         query: { name },
         form
       });
@@ -60839,31 +61106,31 @@ ${g.notes}` : g.notes;
   }),
   defineTool({
     name: "release_asset_delete",
-    module: M9,
+    module: M10,
     title: "Delete release asset",
     description: "Deletes a file attached to a release. Requires confirmation.",
     access: "destructive",
     input: { ...profileShape, ...repoShape, release: releaseRef, asset_id: number2().int().min(1) },
     async confirm(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       return {
-        target: `${owner}/${repo}@${String(args.release)}#asset-${args.asset_id}`,
-        action: `Delete asset ${args.asset_id} from release ${String(args.release)} of ${owner}/${repo}.`
+        target: `${owner2}/${repo}@${String(args.release)}#asset-${args.asset_id}`,
+        action: `Delete asset ${args.asset_id} from release ${String(args.release)} of ${owner2}/${repo}.`
       };
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const rel = await getRelease(ctx, owner, repo, args.release);
+      const { owner: owner2, repo } = await ctx.repo(args);
+      const rel = await getRelease(ctx, owner2, repo, args.release);
       await ctx.client.request({
         method: "DELETE",
-        path: `${repoPath(owner, repo)}/releases/${rel.id}/assets/${args.asset_id}`
+        path: `${repoPath(owner2, repo)}/releases/${rel.id}/assets/${args.asset_id}`
       });
       return { deleted: args.asset_id };
     }
   }),
   defineTool({
     name: "release_compare",
-    module: M9,
+    module: M10,
     title: "Compare two releases",
     description: "Compares two releases (default: the latest two published releases): commits between them grouped by type, changed files and both release notes.",
     access: "read",
@@ -60875,11 +61142,11 @@ ${g.notes}` : g.notes;
       include_prereleases: boolean2().default(true)
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       let { base, head } = args;
       if (!base || !head) {
         const list = await ctx.client.paginate(
-          `${repoPath(owner, repo)}/releases`,
+          `${repoPath(owner2, repo)}/releases`,
           { draft: false },
           { limit: 50 }
         );
@@ -60890,11 +61157,11 @@ ${g.notes}` : g.notes;
       if (!base || !head)
         throw new GiteaError("NOT_FOUND", "At least two releases are needed for a comparison.");
       const [baseRel, headRel] = await Promise.all([
-        getRelease(ctx, owner, repo, base).catch(() => void 0),
-        getRelease(ctx, owner, repo, head).catch(() => void 0)
+        getRelease(ctx, owner2, repo, base).catch(() => void 0),
+        getRelease(ctx, owner2, repo, head).catch(() => void 0)
       ]);
       const res = await ctx.client.request({
-        path: `${repoPath(owner, repo)}/compare/${encodeURIComponent(base)}...${encodeURIComponent(head)}`
+        path: `${repoPath(owner2, repo)}/compare/${encodeURIComponent(base)}...${encodeURIComponent(head)}`
       });
       const commits = res.data.commits ?? [];
       const files = /* @__PURE__ */ new Map();
@@ -60921,11 +61188,11 @@ ${g.notes}` : g.notes;
 ];
 
 // src/tools/modules/repos.ts
-var M10 = "repositories";
+var M11 = "repositories";
 var repoTools = [
   defineTool({
     name: "repo_list",
-    module: M10,
+    module: M11,
     title: "List repositories",
     description: "Lists repositories. Without `owner` it lists all repositories the authenticated user can access (own, collaborations, organisations). With `owner` it lists the repositories of that user or organisation.",
     access: "read",
@@ -60952,7 +61219,7 @@ var repoTools = [
   }),
   defineTool({
     name: "repo_search",
-    module: M10,
+    module: M11,
     title: "Search repositories",
     description: "Searches repositories on the server by keyword (name and optionally description), topic, visibility and archive state, with sorting.",
     access: "read",
@@ -60988,14 +61255,14 @@ var repoTools = [
   }),
   defineTool({
     name: "repo_get",
-    module: M10,
+    module: M11,
     title: "Get repository details",
     description: "Returns repository metadata: visibility, default branch, counters, enabled units, merge settings, topics, languages and your permissions.",
     access: "read",
     input: { ...profileShape, ...repoShape },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const base = repoPath(owner, repo);
+      const { owner: owner2, repo } = await ctx.repo(args);
+      const base = repoPath(owner2, repo);
       const [info, languages] = await Promise.all([
         ctx.client.request({ path: base }),
         ctx.client.request({ path: `${base}/languages` }).catch(() => void 0)
@@ -61018,7 +61285,7 @@ var repoTools = [
   }),
   defineTool({
     name: "repo_create",
-    module: M10,
+    module: M11,
     title: "Create repository",
     description: "Creates a new repository for the authenticated user or, with `organization`, inside an organisation. Repositories are private by default. Needs the token scope write:user (own account) or write:organization (organisation).",
     access: "write",
@@ -61057,7 +61324,7 @@ var repoTools = [
   }),
   defineTool({
     name: "repo_update",
-    module: M10,
+    module: M11,
     title: "Update repository settings",
     description: "Edits repository settings such as description, website, default branch, enabled units (issues, wiki, pull requests, actions, releases, projects) and allowed merge styles. Visibility and archive state have dedicated tools because they need confirmation.",
     access: "write",
@@ -61084,17 +61351,17 @@ var repoTools = [
       template: boolean2().optional()
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       const { profile: _p, owner: _o, repo: _r, ...fields } = args;
       const payload = body(fields);
       requireSomeFields(payload, "the repository");
-      const res = await ctx.client.request({ method: "PATCH", path: repoPath(owner, repo), body: payload });
+      const res = await ctx.client.request({ method: "PATCH", path: repoPath(owner2, repo), body: payload });
       return { updated: Object.keys(payload), repository: slimRepo(res.data) };
     }
   }),
   defineTool({
     name: "repo_set_visibility",
-    module: M10,
+    module: M11,
     title: "Change repository visibility",
     description: "Makes a repository private or public. Making a repository public exposes its code, issues and history to everyone, so the user must confirm.",
     access: "write",
@@ -61104,17 +61371,17 @@ var repoTools = [
       private: boolean2().describe("true = private, false = public")
     },
     async confirm(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       return {
-        target: `${owner}/${repo}`,
-        action: args.private ? `Make repository ${owner}/${repo} PRIVATE.` : `Make repository ${owner}/${repo} PUBLIC \u2014 its code, issues and history become visible to everyone.`
+        target: `${owner2}/${repo}`,
+        action: args.private ? `Make repository ${owner2}/${repo} PRIVATE.` : `Make repository ${owner2}/${repo} PUBLIC \u2014 its code, issues and history become visible to everyone.`
       };
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       const res = await ctx.client.request({
         method: "PATCH",
-        path: repoPath(owner, repo),
+        path: repoPath(owner2, repo),
         body: { private: args.private }
       });
       return { repository: slimRepo(res.data) };
@@ -61122,7 +61389,7 @@ var repoTools = [
   }),
   defineTool({
     name: "repo_archive",
-    module: M10,
+    module: M11,
     title: "Archive or unarchive repository",
     description: "Archives a repository (read-only: no pushes, issues or pull requests) or unarchives it. Requires user confirmation.",
     access: "write",
@@ -61132,17 +61399,17 @@ var repoTools = [
       archived: boolean2().default(true).describe("true = archive, false = unarchive")
     },
     async confirm(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       return {
-        target: `${owner}/${repo}`,
-        action: args.archived ? `Archive ${owner}/${repo}; it becomes read-only.` : `Unarchive ${owner}/${repo}.`
+        target: `${owner2}/${repo}`,
+        action: args.archived ? `Archive ${owner2}/${repo}; it becomes read-only.` : `Unarchive ${owner2}/${repo}.`
       };
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       const res = await ctx.client.request({
         method: "PATCH",
-        path: repoPath(owner, repo),
+        path: repoPath(owner2, repo),
         body: { archived: args.archived }
       });
       return { repository: slimRepo(res.data) };
@@ -61150,27 +61417,27 @@ var repoTools = [
   }),
   defineTool({
     name: "repo_delete",
-    module: M10,
+    module: M11,
     title: "Delete repository",
     description: "PERMANENTLY deletes a repository including code, issues, pull requests, releases and wiki. This cannot be undone. Requires destructive operations to be enabled and an explicit user confirmation naming the repository.",
     access: "destructive",
     input: { ...profileShape, ...repoShape },
     async confirm(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       return {
-        target: `${owner}/${repo}`,
-        action: `PERMANENTLY delete repository ${owner}/${repo} with all code, issues, pull requests, releases and wiki. This cannot be undone.`
+        target: `${owner2}/${repo}`,
+        action: `PERMANENTLY delete repository ${owner2}/${repo} with all code, issues, pull requests, releases and wiki. This cannot be undone.`
       };
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      await ctx.client.request({ method: "DELETE", path: repoPath(owner, repo) });
-      return { deleted: `${owner}/${repo}` };
+      const { owner: owner2, repo } = await ctx.repo(args);
+      await ctx.client.request({ method: "DELETE", path: repoPath(owner2, repo) });
+      return { deleted: `${owner2}/${repo}` };
     }
   }),
   defineTool({
     name: "repo_fork",
-    module: M10,
+    module: M11,
     title: "Fork repository",
     description: "Forks a repository into your account or into an organisation, optionally under a new name.",
     access: "write",
@@ -61181,10 +61448,10 @@ var repoTools = [
       name: nameSchema("Fork").optional()
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       const res = await ctx.client.request({
         method: "POST",
-        path: `${repoPath(owner, repo)}/forks`,
+        path: `${repoPath(owner2, repo)}/forks`,
         body: body({ organization: args.organization, name: args.name })
       });
       return { forked: true, repository: slimRepo(res.data) };
@@ -61192,20 +61459,20 @@ var repoTools = [
   }),
   defineTool({
     name: "repo_forks_list",
-    module: M10,
+    module: M11,
     title: "List forks",
     description: "Lists the forks of a repository.",
     access: "read",
     input: { ...profileShape, ...repoShape, ...pagingShape },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const res = await ctx.client.paginate(`${repoPath(owner, repo)}/forks`, {}, args);
+      const { owner: owner2, repo } = await ctx.repo(args);
+      const res = await ctx.client.paginate(`${repoPath(owner2, repo)}/forks`, {}, args);
       return { total: res.totalCount, has_more: res.hasMore, forks: res.items.map(slimRepo) };
     }
   }),
   defineTool({
     name: "repo_topics_set",
-    module: M10,
+    module: M11,
     title: "Set repository topics",
     description: "Replaces the topics of a repository (lowercase, digits and dashes).",
     access: "write",
@@ -61217,13 +61484,400 @@ var repoTools = [
       ).max(25)
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const { owner: owner2, repo } = await ctx.repo(args);
       await ctx.client.request({
         method: "PUT",
-        path: `${repoPath(owner, repo)}/topics`,
+        path: `${repoPath(owner2, repo)}/topics`,
         body: { topics: args.topics }
       });
       return { topics: args.topics };
+    }
+  })
+];
+
+// src/tools/modules/time.ts
+var M12 = "time_tracking";
+function parseDuration(value) {
+  if (typeof value === "number") return Math.round(value);
+  const v = value.trim().toLowerCase();
+  if (/^\d+$/.test(v)) return Number(v);
+  const re = /(\d+(?:[.,]\d+)?)\s*(std|min|sek|sec|h|m|s)/g;
+  let total = 0;
+  let consumed = "";
+  for (const m of v.matchAll(re)) {
+    const n = Number(m[1].replace(",", "."));
+    const unit = m[2];
+    total += unit.startsWith("h") || unit === "std" ? n * 3600 : unit.startsWith("m") ? n * 60 : n;
+    consumed += m[0];
+  }
+  if (!consumed || consumed.replace(/\s/g, "") !== v.replace(/\s/g, "")) {
+    throw new GiteaError("INVALID_INPUT", `Cannot parse duration "${value}".`, {
+      hint: 'Use seconds or a value such as "1h30m", "90m", "2h" or "45s".'
+    });
+  }
+  return Math.round(total);
+}
+function formatDuration(seconds) {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor(seconds % 3600 / 60);
+  const s = seconds % 60;
+  return [h ? `${h}h` : "", m ? `${m}m` : "", s || !h && !m ? `${s}s` : ""].join("");
+}
+var slimTime = (t) => compact({
+  id: t.id,
+  user: t.user_name,
+  seconds: t.time,
+  duration: formatDuration(t.time),
+  created: t.created,
+  issue: t.issue?.number,
+  issue_title: t.issue?.title
+});
+function summarize(times) {
+  const byUser = /* @__PURE__ */ new Map();
+  for (const t of times) byUser.set(t.user_name ?? "?", (byUser.get(t.user_name ?? "?") ?? 0) + t.time);
+  const total = times.reduce((s, t) => s + t.time, 0);
+  return {
+    total_seconds: total,
+    total: formatDuration(total),
+    by_user: Object.fromEntries([...byUser].map(([u, s]) => [u, formatDuration(s)]))
+  };
+}
+var durationInput = union([number2().int().min(1).max(1e7), string2().min(1).max(50)]).describe('Duration as seconds or text like "1h30m", "90m", "2h", "45s"');
+var timeTools = [
+  defineTool({
+    name: "time_list",
+    module: M12,
+    title: "List tracked time",
+    description: "Lists tracked time with totals per user: for one issue (`number`), for a whole repository, or (`mine: true`) your own entries across all repositories. Filter by user and date range.",
+    access: "read",
+    feature: "time_tracking",
+    input: {
+      ...profileShape,
+      ...repoShape,
+      number: indexSchema("issue or pull request").optional(),
+      mine: boolean2().default(false).describe("Only your own tracked time across all repositories."),
+      user: string2().max(100).optional().describe("Only entries of this user."),
+      since: dateSchema.optional(),
+      before: dateSchema.optional(),
+      ...pagingShape,
+      limit: number2().int().min(1).max(1e3).default(200)
+    },
+    async run(args, ctx) {
+      let path;
+      let query = { since: args.since, before: args.before };
+      if (args.mine) path = "/user/times";
+      else {
+        const { owner: owner2, repo } = await ctx.repo(args);
+        path = args.number ? `${repoPath(owner2, repo)}/issues/${args.number}/times` : `${repoPath(owner2, repo)}/times`;
+        query = { ...query, user: args.user };
+      }
+      const res = await ctx.client.paginate(path, query, { limit: args.limit, page: args.page });
+      return { has_more: res.hasMore, ...summarize(res.items), entries: res.items.map(slimTime) };
+    }
+  }),
+  defineTool({
+    name: "time_add",
+    module: M12,
+    title: "Add tracked time",
+    description: "Books time on an issue or pull request. Optionally backdate it (`created`) or, as a repository admin, book it for another user (`user_name`).",
+    access: "write",
+    feature: "time_tracking",
+    input: {
+      ...profileShape,
+      ...repoShape,
+      number: indexSchema("issue or pull request"),
+      duration: durationInput,
+      created: dateSchema.optional().describe("When the work was done (default: now)."),
+      user_name: string2().max(100).optional().describe("Book for this user (requires admin rights).")
+    },
+    async run(args, ctx) {
+      const { owner: owner2, repo } = await ctx.repo(args);
+      const seconds = parseDuration(args.duration);
+      if (seconds <= 0) throw new GiteaError("INVALID_INPUT", "Duration must be positive.");
+      const res = await ctx.client.request({
+        method: "POST",
+        path: `${repoPath(owner2, repo)}/issues/${args.number}/times`,
+        body: compact({ time: seconds, created: args.created, user_name: args.user_name })
+      });
+      let stored = res.data;
+      let warning;
+      if (args.created) {
+        const list = await ctx.client.paginate(
+          `${repoPath(owner2, repo)}/issues/${args.number}/times`,
+          {},
+          { limit: 1e3 }
+        );
+        stored = list.items.find((t) => t.id === res.data.id) ?? stored;
+        if (Date.parse(stored.created) !== Date.parse(args.created)) {
+          warning = `This Gitea server ignored the requested date ${args.created} and stored ${stored.created}. Backdating tracked time is not supported here.`;
+        }
+      }
+      return { added: slimTime(stored), warning };
+    }
+  }),
+  defineTool({
+    name: "time_delete",
+    module: M12,
+    title: "Delete tracked time",
+    description: "Deletes one tracked-time entry (`id`) of an issue, or with `all: true` resets all of your tracked time on that issue. Requires confirmation.",
+    access: "destructive",
+    feature: "time_tracking",
+    input: {
+      ...profileShape,
+      ...repoShape,
+      number: indexSchema("issue or pull request"),
+      id: number2().int().min(1).optional(),
+      all: boolean2().default(false)
+    },
+    async confirm(args, ctx) {
+      const { owner: owner2, repo } = await ctx.repo(args);
+      if (!args.id && !args.all) throw new GiteaError("INVALID_INPUT", "Pass id, or all: true.");
+      return {
+        target: `${owner2}/${repo}#${args.number}:time-${args.all ? "all" : String(args.id)}`,
+        action: args.all ? `Delete ALL of your tracked time on ${owner2}/${repo}#${args.number}.` : `Delete tracked-time entry ${String(args.id)} on ${owner2}/${repo}#${args.number}.`
+      };
+    },
+    async run(args, ctx) {
+      const { owner: owner2, repo } = await ctx.repo(args);
+      const base = `${repoPath(owner2, repo)}/issues/${args.number}/times`;
+      await ctx.client.request({ method: "DELETE", path: args.all ? base : `${base}/${String(args.id)}` });
+      return { deleted: args.all ? "all" : args.id };
+    }
+  }),
+  defineTool({
+    name: "stopwatch",
+    module: M12,
+    title: "Start or stop the stopwatch",
+    description: "Starts the stopwatch on an issue, stops it (the elapsed time is booked as tracked time) or cancels it (discarded).",
+    access: "write",
+    feature: "time_tracking",
+    input: {
+      ...profileShape,
+      ...repoShape,
+      number: indexSchema("issue or pull request"),
+      action: _enum(["start", "stop", "cancel"])
+    },
+    async run(args, ctx) {
+      const { owner: owner2, repo } = await ctx.repo(args);
+      const base = `${repoPath(owner2, repo)}/issues/${args.number}/stopwatch`;
+      if (args.action === "cancel") await ctx.client.request({ method: "DELETE", path: `${base}/delete` });
+      else await ctx.client.request({ method: "POST", path: `${base}/${args.action}` });
+      return {
+        issue: args.number,
+        stopwatch: args.action === "start" ? "running" : args.action === "stop" ? "stopped (time booked)" : "cancelled"
+      };
+    }
+  }),
+  defineTool({
+    name: "stopwatch_list",
+    module: M12,
+    title: "List running stopwatches",
+    description: "Lists your running stopwatches with the issue and the elapsed time.",
+    access: "read",
+    feature: "time_tracking",
+    input: { ...profileShape },
+    async run(_args, ctx) {
+      const res = await ctx.client.paginate("/user/stopwatches", {}, { limit: 100 });
+      return {
+        stopwatches: res.items.map(
+          (s) => compact({
+            repository: `${String(s.repo_owner_name)}/${String(s.repo_name)}`,
+            issue: s.issue_index,
+            title: s.issue_title,
+            elapsed: typeof s.seconds === "number" ? formatDuration(s.seconds) : s.duration,
+            started: s.created
+          })
+        )
+      };
+    }
+  })
+];
+
+// src/tools/modules/wiki.ts
+var M13 = "wiki";
+var pageInput = string2().min(1).max(255).describe('Page title or its URL name (e.g. "Getting-Started")');
+var slimMeta = (p) => compact({
+  title: p.title,
+  page: p.sub_url,
+  html_url: p.html_url,
+  last_change: p.last_commit?.author?.date,
+  last_message: p.last_commit?.message?.trim()
+});
+async function resolvePage(ctx, base, page) {
+  try {
+    await ctx.client.request({ path: `${base}/page/${encodeURIComponent(page)}` });
+    return page;
+  } catch (err) {
+    if (!(err instanceof GiteaError) || err.code !== "NOT_FOUND") throw err;
+  }
+  const pages = await ctx.client.paginate(`${base}/pages`, {}, { limit: 1e3 });
+  const found = pages.items.find(
+    (p) => p.title.toLowerCase() === page.toLowerCase() || p.sub_url?.toLowerCase() === page.toLowerCase()
+  );
+  if (!found?.sub_url) {
+    throw new GiteaError("NOT_FOUND", `Wiki page "${page}" does not exist.`, {
+      hint: `Pages: ${pages.items.map((p) => p.title).join(", ") || "(none)"}`
+    });
+  }
+  return found.sub_url;
+}
+var b64 = (s) => Buffer.from(s, "utf8").toString("base64");
+var wikiTools = [
+  defineTool({
+    name: "wiki_page_list",
+    module: M13,
+    title: "List wiki pages",
+    description: "Lists the wiki pages of a repository with their last change.",
+    access: "read",
+    feature: "wiki",
+    input: { ...profileShape, ...repoShape },
+    async run(args, ctx) {
+      const { owner: owner2, repo } = await ctx.repo(args);
+      const res = await ctx.client.paginate(
+        `${repoPath(owner2, repo)}/wiki/pages`,
+        {},
+        { limit: 1e3 }
+      );
+      return { pages: res.items.map(slimMeta) };
+    }
+  }),
+  defineTool({
+    name: "wiki_page_get",
+    module: M13,
+    title: "Read wiki page",
+    description: "Reads a wiki page (Markdown) by title or URL name, optionally with its revision history.",
+    access: "read",
+    feature: "wiki",
+    input: {
+      ...profileShape,
+      ...repoShape,
+      page: pageInput,
+      include_history: boolean2().default(false),
+      max_chars: number2().int().min(100).max(5e5).default(1e5)
+    },
+    async run(args, ctx) {
+      const { owner: owner2, repo } = await ctx.repo(args);
+      const base = `${repoPath(owner2, repo)}/wiki`;
+      const name = await resolvePage(ctx, base, args.page);
+      const res = await ctx.client.request({ path: `${base}/page/${encodeURIComponent(name)}` });
+      const t = truncateText(
+        Buffer.from(res.data.content_base64 ?? "", "base64").toString("utf8"),
+        args.max_chars
+      );
+      const out = {
+        ...slimMeta(res.data),
+        revisions: res.data.commit_count,
+        truncated: t.truncated || void 0,
+        content: t.text
+      };
+      if (args.include_history) {
+        const hist = await ctx.client.request({
+          path: `${base}/revisions/${encodeURIComponent(name)}`
+        });
+        out.history = (hist.data.commits ?? []).map(
+          (c) => compact({
+            sha: c.sha.slice(0, 10),
+            message: c.message.trim(),
+            author: c.author?.name,
+            date: c.author?.date
+          })
+        );
+      }
+      return out;
+    }
+  }),
+  defineTool({
+    name: "wiki_page_create",
+    module: M13,
+    title: "Create wiki page",
+    description: "Creates a wiki page with Markdown content. The repository wiki is enabled by creating its first page.",
+    access: "write",
+    feature: "wiki",
+    input: {
+      ...profileShape,
+      ...repoShape,
+      title: string2().min(1).max(255),
+      content: string2().max(5 * 1024 * 1024).describe("Markdown"),
+      message: string2().max(1e3).optional().describe("Commit message")
+    },
+    async run(args, ctx) {
+      const { owner: owner2, repo } = await ctx.repo(args);
+      const res = await ctx.client.request({
+        method: "POST",
+        path: `${repoPath(owner2, repo)}/wiki/new`,
+        body: compact({ title: args.title, content_base64: b64(args.content), message: args.message })
+      }).catch(async (err) => {
+        if (err instanceof GiteaError && err.code === "NOT_FOUND") {
+          const info = await ctx.client.request({ path: repoPath(owner2, repo) }).catch(() => void 0);
+          if (info?.data.has_wiki === false) {
+            throw new GiteaError("UNSUPPORTED", `The wiki of ${owner2}/${repo} is disabled.`, {
+              hint: "Enable it with repo_update (has_wiki: true), then create the page again."
+            });
+          }
+        }
+        throw err;
+      });
+      return { created: true, page: slimMeta(res.data) };
+    }
+  }),
+  defineTool({
+    name: "wiki_page_update",
+    module: M13,
+    title: "Edit wiki page",
+    description: "Replaces the content of a wiki page and/or renames it (new_title).",
+    access: "write",
+    feature: "wiki",
+    input: {
+      ...profileShape,
+      ...repoShape,
+      page: pageInput,
+      content: string2().max(5 * 1024 * 1024).optional(),
+      new_title: string2().min(1).max(255).optional(),
+      message: string2().max(1e3).optional()
+    },
+    async run(args, ctx) {
+      const { owner: owner2, repo } = await ctx.repo(args);
+      if (args.content === void 0 && !args.new_title) {
+        throw new GiteaError("INVALID_INPUT", "Provide content and/or new_title.");
+      }
+      const base = `${repoPath(owner2, repo)}/wiki`;
+      const name = await resolvePage(ctx, base, args.page);
+      let content = args.content;
+      let title = args.new_title;
+      if (content === void 0 || !title) {
+        const current = (await ctx.client.request({ path: `${base}/page/${encodeURIComponent(name)}` })).data;
+        content ??= Buffer.from(current.content_base64 ?? "", "base64").toString("utf8");
+        title ??= current.title;
+      }
+      const res = await ctx.client.request({
+        method: "PATCH",
+        path: `${base}/page/${encodeURIComponent(name)}`,
+        body: compact({ title, content_base64: b64(content), message: args.message })
+      });
+      return { updated: true, page: slimMeta(res.data) };
+    }
+  }),
+  defineTool({
+    name: "wiki_page_delete",
+    module: M13,
+    title: "Delete wiki page",
+    description: "Deletes a wiki page (its history stays in the wiki repository). Requires confirmation.",
+    access: "destructive",
+    feature: "wiki",
+    input: { ...profileShape, ...repoShape, page: pageInput },
+    async confirm(args, ctx) {
+      const { owner: owner2, repo } = await ctx.repo(args);
+      return {
+        target: `${owner2}/${repo}/wiki/${args.page}`,
+        action: `Delete wiki page "${args.page}" of ${owner2}/${repo}.`
+      };
+    },
+    async run(args, ctx) {
+      const { owner: owner2, repo } = await ctx.repo(args);
+      const base = `${repoPath(owner2, repo)}/wiki`;
+      const name = await resolvePage(ctx, base, args.page);
+      await ctx.client.request({ method: "DELETE", path: `${base}/page/${encodeURIComponent(name)}` });
+      return { deleted: name };
     }
   })
 ];
@@ -61236,10 +61890,13 @@ var ALL_TOOLS = [
   ...gitTools,
   ...issueTools,
   ...projectTools,
+  ...timeTools,
   ...pullTools,
   ...orgTools,
   ...actionTools,
   ...releaseTools,
+  ...packageTools,
+  ...wikiTools,
   ...extendedTools
 ];
 function enabledTools(permissions) {

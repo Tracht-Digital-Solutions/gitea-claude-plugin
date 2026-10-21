@@ -1,7 +1,7 @@
 # Gitea plugin for Claude Code
 
 Connects Claude Code to any Gitea instance — gitea.com or a self-hosted server. A bundled MCP
-server provides 137 tools for repositories, files, branches, commits, tags, issues, labels,
+server provides 153 tools for repositories, files, branches, commits, tags, issues, labels,
 milestones, project boards, pull requests and reviews, organisations, teams and collaborators, Gitea Actions
 (runs, jobs, logs, re-runs, artifacts), releases and assets, webhooks and notifications. Seven
 skills guide common workflows: setup, pull request from local changes, pull request review, issue
