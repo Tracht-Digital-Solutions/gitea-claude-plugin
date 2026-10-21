@@ -1,9 +1,31 @@
 # Changelog
 
+## 0.2.0 (2026-10-21)
+
+First published release.
+
+
+### Features
+
+* **core:** add Gitea HTTP client, configuration and security primitives ([6966e20](https://github.com/jtracht/claude-code-gitea/commit/6966e20781aebfaa765c8a117f632040c5bf83fe))
+* **plugin:** add Claude Code plugin manifest and bundled MCP server build ([d112382](https://github.com/jtracht/claude-code-gitea/commit/d1123826b4944815fdefb0c878f8160dc93ef6b5))
+* **plugin:** add workflow skills, marketplace and icon ([c60756f](https://github.com/jtracht/claude-code-gitea/commit/c60756f6799b5b4deff8d801c74a072bc257947f))
+* **tools:** add MCP server and Gitea tool modules ([bcdf8d8](https://github.com/jtracht/claude-code-gitea/commit/bcdf8d8b8bab619576d8d5d1a6be90b27c567fe4))
+
+
+### Bug Fixes
+
+* **plugin:** ship the release skill ([#6](https://github.com/jtracht/claude-code-gitea/issues/6)) ([a622c36](https://github.com/jtracht/claude-code-gitea/commit/a622c36c30b5295aa5333975e3b0267d6fa62fb3))
+
+
+### Documentation
+
+* add README, German docs, architecture, configuration and community files ([719b36d](https://github.com/jtracht/claude-code-gitea/commit/719b36da5c122c1efc8fa4ef3a3e2bf986686e62))
+
 ## 0.1.0 (2026-10-21)
 
 > Not published. The release pipeline was stopped before publication and the draft was withdrawn
-> because the `release` skill was missing from the package; 0.1.1 is the first published version.
+> because the `release` skill was missing from the package; 0.2.0 is the first published version.
 
 
 ### Features
