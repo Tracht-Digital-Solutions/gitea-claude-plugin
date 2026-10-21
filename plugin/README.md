@@ -10,9 +10,9 @@ triage, CI failure analysis, releases and repository overviews.
 Install:
 
 ```bash
-claude plugin install gitea --marketplace jtracht/claude-code-gitea
+claude plugin install gitea --marketplace jtracht/gitea-claude-plugin
 # or inside Claude Code:
-/plugin marketplace add jtracht/claude-code-gitea
+/plugin marketplace add jtracht/gitea-claude-plugin
 /plugin install gitea@jtracht-gitea
 ```
 
@@ -21,4 +21,4 @@ token is kept in the operating system's credential store. Destructive and admini
 operations are disabled by default and always require confirmation. Node.js 22.19 or newer must be
 on the PATH.
 
-Documentation: https://github.com/jtracht/claude-code-gitea
+Documentation: https://github.com/jtracht/gitea-claude-plugin
