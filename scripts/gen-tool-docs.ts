@@ -9,6 +9,7 @@ const MODULE_TITLES: Record<string, string> = {
   repositories: 'Repositories and files',
   git: 'Branches, commits, tags and protection',
   issues: 'Issues, labels and milestones',
+  projects: 'Projects (kanban boards)',
   pull_requests: 'Pull requests and reviews',
   organizations: 'Users, organisations, teams and access',
   actions: 'Gitea Actions',

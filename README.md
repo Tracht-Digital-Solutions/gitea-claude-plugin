@@ -6,7 +6,7 @@
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%E2%89%A522.19-339933?logo=node.js&logoColor=white)](https://nodejs.org)
 
-A [Claude Code](https://code.claude.com) plugin that connects Claude to **any Gitea instance** — gitea.com or your own self-hosted server. It ships a bundled MCP server with **126 tools** and **7 workflow skills** for repositories, files, branches, issues, pull requests and reviews, organisations and teams, Gitea Actions, releases, webhooks and notifications.
+A [Claude Code](https://code.claude.com) plugin that connects Claude to **any Gitea instance** — gitea.com or your own self-hosted server. It ships a bundled MCP server with **137 tools** and **7 workflow skills** for repositories, files, branches, issues, pull requests and reviews, organisations and teams, Gitea Actions, releases, webhooks and notifications.
 
 > 🇩🇪 Deutsche Dokumentation: [docs/de/README.md](docs/de/README.md)
 
@@ -25,6 +25,7 @@ Claude: ▸ gitea · actions_failures_analyze   → run #42 failed in job "test"
 | **Files**         | read, list directories and trees, find files by glob, search contents, create/update/delete, multi-file commits, compare a file between refs                                 |
 | **Git**           | branches, commits with diffs, history analysis, compare refs, tags, commit status, branch and tag protection, local repository inspection and push                           |
 | **Issues**        | list/filter by priority, labels, assignee, milestone; search across repositories; create, edit, assign, label, comment, close/reopen; backlog summary; labels and milestones |
+| **Projects**      | kanban boards on repositories, organisations and your account: create (templates or own columns), show the board, add/move/remove issues, manage columns                     |
 | **Pull requests** | list, create, edit, diff, files, commits, reviews and inline comments, review requests, merge-readiness check, merge (confirmed), update branch, close                       |
 | **Organisations** | users, organisations, members, teams and team members, collaborators, repository access analysis                                                                             |
 | **Gitea Actions** | workflows and their YAML, runs, jobs, logs, failure analysis, re-run, dispatch, cancel, artifacts                                                                            |

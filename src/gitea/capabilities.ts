@@ -22,6 +22,7 @@ export const FEATURE_ENDPOINTS = {
   compare: 'GET /repos/{owner}/{repo}/compare/{basehead}',
   pr_update_branch: 'POST /repos/{owner}/{repo}/pulls/{index}/update',
   notifications: 'GET /notifications',
+  projects: 'GET /repos/{owner}/{repo}/projects',
   repo_archive_download: 'GET /repos/{owner}/{repo}/archive/{archive}',
 } as const;
 
