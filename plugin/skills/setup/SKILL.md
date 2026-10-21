@@ -29,11 +29,11 @@ Explain the two values the plugin needs and where they are stored:
 Tell the user how to create the token in Gitea: _Settings → Applications → Manage Access Tokens_,
 with only the scopes they need:
 
-| Use                                         | Scopes                                                                                    |
-| ------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| Read-only (browse, analyse)                 | `read:repository`, `read:issue`, `read:user`, `read:organization`, `read:notification`    |
-| Typical development (issues, PRs, releases) | `write:repository`, `write:issue`, `read:user`, `read:organization`, `write:notification` |
-| Organisation / team administration          | additionally `write:organization`                                                         |
+| Use                                         | Scopes                                                                                     |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Read-only (browse, analyse)                 | `read:repository`, `read:issue`, `read:user`, `read:organization`, `read:notification`     |
+| Typical development (issues, PRs, releases) | `write:repository`, `write:issue`, `write:user`, `read:organization`, `write:notification` |
+| Organisation / team administration          | additionally `write:organization` (also needed to create repositories in an organisation)  |
 
 Then tell them to enter the values with `/plugin` → _gitea_ → _Configure_ (or
 `claude plugin configure gitea` in a terminal) and to run `/reload-plugins`. Never ask the user to
@@ -43,6 +43,8 @@ paste the token into the chat, and never write it to a file yourself.
 
 - **UNAUTHORIZED** — the token is wrong, expired or revoked: create a new one and reconfigure.
 - **FORBIDDEN mentioning a scope** — the token lacks that scope: create a token that includes it.
+  Creating a repository needs `write:user` (own account) or `write:organization` (organisation),
+  not only `write:repository`. Gitea cannot change the scopes of an existing token.
 - **TLS_ERROR** — the server uses a certificate from a private CA. Ask for the CA certificate as a
   PEM file and set _CA certificate file_ in the plugin options, or enable _Trust the operating
   system CA store_ if the CA is installed system-wide. TLS verification is never turned off; do not

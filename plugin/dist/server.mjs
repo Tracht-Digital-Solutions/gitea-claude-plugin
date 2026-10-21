@@ -60631,7 +60631,7 @@ var repoTools = [
     name: "repo_create",
     module: M9,
     title: "Create repository",
-    description: "Creates a new repository for the authenticated user or, with `organization`, inside an organisation. Repositories are private by default.",
+    description: "Creates a new repository for the authenticated user or, with `organization`, inside an organisation. Repositories are private by default. Needs the token scope write:user (own account) or write:organization (organisation).",
     access: "write",
     input: {
       ...profileShape,
