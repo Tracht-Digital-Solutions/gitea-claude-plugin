@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/jtracht/claude-code-gitea/compare/v0.2.0...v0.2.1) (2026-10-21)
+
+
+### Bug Fixes
+
+* **plugin:** recommend the write:user token scope needed to create repositories ([#10](https://github.com/jtracht/claude-code-gitea/issues/10)) ([1e90785](https://github.com/jtracht/claude-code-gitea/commit/1e9078529f1f2dfdfcadf449dc6449f497b94e1b))
+
 ## 0.2.0 (2026-10-21)
 
 First published release.
