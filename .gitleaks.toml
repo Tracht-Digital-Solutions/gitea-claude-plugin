@@ -12,4 +12,5 @@ regexes = [
   '''test-token-0123456789''',
   '''mcp-test-token-abcdef0123''',
   '''invalid-token-0{4,}''',
+  '''tok-1234567890''',
 ]
