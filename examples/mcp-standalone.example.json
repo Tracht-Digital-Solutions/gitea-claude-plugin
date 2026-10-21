@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "gitea": {
+      "command": "node",
+      "args": ["/absolute/path/to/gitea/dist/server.mjs"],
+      "env": {
+        "GITEA_URL": "https://git.example.com",
+        "GITEA_TOKEN": "<set-via-your-secret-manager>",
+        "GITEA_ALLOW_WRITE": "true",
+        "GITEA_ALLOW_DESTRUCTIVE": "false",
+        "GITEA_ALLOW_ADMIN": "false"
+      }
+    }
+  }
+}

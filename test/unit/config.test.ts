@@ -1,4 +1,4 @@
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -87,6 +87,11 @@ describe('loadConfig', () => {
       /Invalid profiles file/,
     );
     expect(() => parseProfilesFile('{nope')).toThrow(/not valid JSON/);
+  });
+
+  it('accepts the documented example profiles file', () => {
+    const parsed = parseProfilesFile(readFileSync('examples/profiles.example.json', 'utf8'));
+    expect(Object.keys(parsed.profiles)).toEqual(['work', 'home']);
   });
 
   it('clamps numeric options', () => {
