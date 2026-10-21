@@ -15,6 +15,10 @@ updates:
       development:
         dependency-type: development
         update-types: [minor, patch]
+    ignore:
+      # Types must match the oldest supported Node.js major (engines: >=22.19).
+      - dependency-name: '@types/node'
+        update-types: [version-update:semver-major]
     cooldown:
       default-days: 7
   - package-ecosystem: npm
