@@ -1,6 +1,7 @@
 // Starts the bundled MCP server over stdio and verifies the protocol handshake, the tool list and
 // a structured error for an unconfigured server. With GITEA_URL/GITEA_TOKEN set it also runs
 // connection_test against that server. Used in CI and before releases.
+// Usage: node scripts/smoke-mcp.mjs [path/to/server.mjs]
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 
@@ -12,7 +13,7 @@ if (!configured) {
 }
 const transport = new StdioClientTransport({
   command: process.execPath,
-  args: ['plugin/dist/server.mjs'],
+  args: [process.argv[2] ?? 'plugin/dist/server.mjs'],
   env,
   stderr: 'inherit',
 });
