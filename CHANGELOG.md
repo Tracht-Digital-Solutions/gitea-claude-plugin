@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/jtracht/claude-code-gitea/compare/v0.2.1...v0.3.0) (2026-10-21)
+
+
+### Features
+
+* **projects:** add project board tools ([#12](https://github.com/jtracht/claude-code-gitea/issues/12)) ([6095b03](https://github.com/jtracht/claude-code-gitea/commit/6095b0314a844a4faab2ea68867f737830846cbd))
+
 ## [0.2.1](https://github.com/jtracht/claude-code-gitea/compare/v0.2.0...v0.2.1) (2026-10-21)
 
 
