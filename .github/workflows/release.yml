@@ -150,18 +150,41 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release upload "${TAG}" release/* --repo "${REPO}" --clobber
-      - name: Update the stable branch (tag + built bundle)
+      - name: Update the stable branch (plugin directory of the tag + built bundle)
+        # `stable` is a distribution branch with its own linear history. Each commit contains only
+        # the plugin/ directory of the release tag plus the built server, so it never carries
+        # workflow files (which GITHUB_TOKEN may not push) and needs no force push.
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git switch -C stable
-          git add --force plugin/dist/server.mjs
-          git commit -m "chore(release): build ${TAG}" -m "Tag ${TAG} ($(git rev-parse --short "${TAG}")) plus the bundled MCP server."
           auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 -w0)"
-          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic ${auth}" \
-            push --force "https://github.com/${REPO}.git" HEAD:refs/heads/stable
+          gitauth=(-c "http.https://github.com/.extraheader=AUTHORIZATION: basic ${auth}")
+          remote="https://github.com/${REPO}.git"
+          parent=()
+          if git "${gitauth[@]}" fetch --quiet "${remote}" stable 2>/dev/null; then
+            parent=(-p FETCH_HEAD)
+          fi
+          GIT_INDEX_FILE="$(mktemp -u)"
+          export GIT_INDEX_FILE
+          git read-tree --empty
+          git add --force plugin
+          {
+            echo "# stable (generated)"
+            echo
+            echo "Distribution branch served by the Claude Code marketplace in this repository."
+            echo "It contains the plugin/ directory of release ${TAG} plus the built MCP server."
+            echo "Sources and history: https://github.com/${REPO}/tree/${TAG}"
+          } > STABLE.md
+          git add --force STABLE.md
+          tree="$(git write-tree)"
+          tag_sha="$(git rev-parse "${TAG}^{commit}")"
+          commit="$(git commit-tree "${tree}" "${parent[@]}" -m "release: ${TAG}" \
+            -m "Plugin directory of ${TAG} (${tag_sha}) plus plugin/dist/server.mjs.")"
+          unset GIT_INDEX_FILE
+          git "${gitauth[@]}" push "${remote}" "${commit}:refs/heads/stable"
+          echo "stable -> ${commit}"
       - name: Publish the release
         env:
           GH_TOKEN: ${{ github.token }}

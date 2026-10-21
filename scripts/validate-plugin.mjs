@@ -26,6 +26,21 @@ if (
   errors.push('marketplace entry must point to git-subdir path "plugin" on ref "stable"');
 }
 
+// Every file of the plugin except the build output must be tracked: an over-broad .gitignore rule
+// would silently drop it from the release (git ls-files lists ignored files that exist on disk).
+const gitList = (...args) =>
+  execFileSync('git', ['ls-files', ...args, 'plugin'], { encoding: 'utf8' })
+    .split(/\r?\n/)
+    .filter(Boolean);
+const ignored = gitList('--others', '--ignored', '--exclude-standard').filter(
+  (f) => !f.startsWith('plugin/dist/'),
+);
+if (ignored.length) {
+  errors.push(`files under plugin/ are ignored by .gitignore and would not ship: ${ignored.join(', ')}`);
+}
+const untracked = gitList('--others', '--exclude-standard');
+if (untracked.length) errors.push(`untracked files under plugin/: ${untracked.join(', ')}`);
+
 // On Windows `claude` may be a .cmd shim that needs a shell; the arguments are fixed literals.
 const run = (args) => {
   const out =
