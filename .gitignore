@@ -1,0 +1,16 @@
+node_modules/
+plugin/dist/
+dist/
+coverage/
+release/
+*.log
+.env
+.env.*
+!.env.example
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+.gitea-test/
+*.tsbuildinfo
