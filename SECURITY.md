@@ -9,7 +9,7 @@ Security fixes are released for the latest minor version. Please update to the n
 
 Please **do not open a public issue** for security problems. Use GitHub's private vulnerability
 reporting instead: **Security → Report a vulnerability** on
-<https://github.com/jtracht/claude-code-gitea/security/advisories/new>.
+<https://github.com/jtracht/gitea-claude-plugin/security/advisories/new>.
 
 Include the affected version, a description of the impact, and steps to reproduce. Never include
 real API tokens, even revoked ones. You will receive an acknowledgement within 7 days; confirmed

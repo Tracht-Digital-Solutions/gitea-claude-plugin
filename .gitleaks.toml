@@ -1,4 +1,4 @@
-title = "claude-code-gitea gitleaks config"
+title = "gitea-claude-plugin gitleaks config"
 
 [extend]
 useDefault = true

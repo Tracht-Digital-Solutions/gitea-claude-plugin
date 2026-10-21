@@ -8,8 +8,8 @@
     "name": "Julian Tracht",
     "url": "https://github.com/jtracht"
   },
-  "homepage": "https://github.com/jtracht/claude-code-gitea#readme",
-  "repository": "https://github.com/jtracht/claude-code-gitea",
+  "homepage": "https://github.com/jtracht/gitea-claude-plugin#readme",
+  "repository": "https://github.com/jtracht/gitea-claude-plugin",
   "license": "Apache-2.0",
   "keywords": [
     "gitea",

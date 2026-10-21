@@ -134,7 +134,7 @@ Gitea message and an actionable `hint`. Tool results set `isError: true` and con
 
 ## Architecture decisions
 
-**ADR-1 · Plugin name `gitea`, repository `claude-code-gitea`.** Claude Code reserves plugin names
+**ADR-1 · Plugin name `gitea`, repository `gitea-claude-plugin`.** Claude Code reserves plugin names
 starting with `claude-`; `claude plugin validate` rejects them. The repository keeps the requested
 name; the plugin and its tools are namespaced `gitea`.
 

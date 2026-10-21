@@ -15,7 +15,7 @@
       "tags": ["gitea", "forgejo", "git", "mcp", "ci", "code-review"],
       "source": {
         "source": "git-subdir",
-        "url": "https://github.com/jtracht/claude-code-gitea.git",
+        "url": "https://github.com/jtracht/gitea-claude-plugin.git",
         "path": "plugin",
         "ref": "stable"
       }

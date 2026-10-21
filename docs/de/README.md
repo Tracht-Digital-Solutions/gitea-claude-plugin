@@ -33,14 +33,14 @@ Alle Tools: [docs/TOOLS.md](../TOOLS.md). Skills (Aufruf mit `/gitea:<name>` ode
 In Claude Code:
 
 ```text
-/plugin marketplace add jtracht/claude-code-gitea
+/plugin marketplace add jtracht/gitea-claude-plugin
 /plugin install gitea@jtracht-gitea
 ```
 
 Oder im Terminal:
 
 ```bash
-claude plugin marketplace add jtracht/claude-code-gitea
+claude plugin marketplace add jtracht/gitea-claude-plugin
 claude plugin install gitea@jtracht-gitea
 ```
 
