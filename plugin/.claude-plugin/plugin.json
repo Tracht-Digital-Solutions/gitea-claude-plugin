@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "gitea",
+  "displayName": "Gitea",
+  "version": "0.0.0",
+  "description": "Work with any Gitea instance from Claude Code: repositories, files, branches, issues, pull requests, reviews, organisations, Gitea Actions, releases and webhooks via a bundled MCP server.",
+  "author": {
+    "name": "Julian Tracht",
+    "url": "https://github.com/jtracht"
+  },
+  "homepage": "https://github.com/jtracht/claude-code-gitea#readme",
+  "repository": "https://github.com/jtracht/claude-code-gitea",
+  "license": "Apache-2.0",
+  "keywords": ["gitea", "forgejo", "git", "mcp", "issues", "pull-requests", "actions", "releases"],
+  "userConfig": {
+    "gitea_url": {
+      "type": "string",
+      "title": "Gitea server URL",
+      "description": "Base URL of your Gitea instance, e.g. https://gitea.example.com",
+      "required": true
+    },
+    "gitea_token": {
+      "type": "string",
+      "title": "Gitea API token",
+      "description": "Personal access token (Gitea → Settings → Applications). Stored in the system credential store, never in settings.json.",
+      "sensitive": true,
+      "required": true
+    },
+    "allow_write": {
+      "type": "boolean",
+      "title": "Allow write operations",
+      "description": "Create and edit repositories, files, branches, issues, pull requests and releases.",
+      "default": true
+    },
+    "allow_destructive": {
+      "type": "boolean",
+      "title": "Allow destructive operations",
+      "description": "Delete repositories, branches, tags, files, releases, labels and comments. Each deletion still needs your confirmation.",
+      "default": false
+    },
+    "allow_admin": {
+      "type": "boolean",
+      "title": "Allow administrative operations",
+      "description": "Manage organisations, teams, collaborators, branch/tag protection and webhooks. Each change still needs your confirmation.",
+      "default": false
+    },
+    "ca_file": {
+      "type": "string",
+      "title": "CA certificate file (optional)",
+      "description": "Absolute path to a PEM file with your private CA, for self-hosted instances with internal certificates. Leave empty otherwise.",
+      "default": ""
+    },
+    "use_system_ca": {
+      "type": "boolean",
+      "title": "Trust the operating system CA store",
+      "description": "Also trust certificates from the OS trust store (useful for corporate CAs).",
+      "default": false
+    },
+    "profiles_file": {
+      "type": "string",
+      "title": "Profiles file (optional)",
+      "description": "Absolute path to a JSON file defining additional Gitea profiles (see docs/CONFIGURATION.md). Leave empty for a single server.",
+      "default": ""
+    },
+    "allow_insecure_http": {
+      "type": "boolean",
+      "title": "Allow insecure HTTP",
+      "description": "Permit http:// URLs (sends the token unencrypted). Only for local test instances.",
+      "default": false
+    }
+  }
+}
