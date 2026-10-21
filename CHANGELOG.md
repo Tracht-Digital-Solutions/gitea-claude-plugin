@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.5.0](https://github.com/jtracht/claude-code-gitea/compare/v0.4.1...v0.5.0) (2026-10-21)
+
+
+### Features
+
+* add time tracking, wiki, package and runner tools ([#14](https://github.com/jtracht/claude-code-gitea/issues/14)) ([6612dab](https://github.com/jtracht/claude-code-gitea/commit/6612dab5d04e2f85bdeea858f4308da8c9b59651))
+* **core:** add Gitea HTTP client, configuration and security primitives ([43998fe](https://github.com/jtracht/claude-code-gitea/commit/43998fec2fcc436038cbacf20f74ed4fcf3d2aa9))
+* **plugin:** add Claude Code plugin manifest and bundled MCP server build ([ded3aea](https://github.com/jtracht/claude-code-gitea/commit/ded3aeaba688a471945d5ae346e940646976e3b7))
+* **plugin:** add workflow skills, marketplace and icon ([080bb52](https://github.com/jtracht/claude-code-gitea/commit/080bb52413cea04eb9fa6d8d9f2711abdcd5033d))
+* **projects:** add project board tools ([#12](https://github.com/jtracht/claude-code-gitea/issues/12)) ([bdbe08e](https://github.com/jtracht/claude-code-gitea/commit/bdbe08e7372fd5a12ac6d6f9e432e3638fc96e81))
+* **tools:** add MCP server and Gitea tool modules ([afa9895](https://github.com/jtracht/claude-code-gitea/commit/afa98957db2a78b98a6331603506fc58e9b77e3b))
+
+
+### Bug Fixes
+
+* **plugin:** recommend the write:user token scope needed to create repositories ([#10](https://github.com/jtracht/claude-code-gitea/issues/10)) ([4c20d92](https://github.com/jtracht/claude-code-gitea/commit/4c20d92a1e35e5da959d8e573b256b824f208876))
+* **plugin:** ship the release skill ([#6](https://github.com/jtracht/claude-code-gitea/issues/6)) ([5e8903e](https://github.com/jtracht/claude-code-gitea/commit/5e8903e42056735bdcd62946a0cd22bd541b7709))
+* **releases:** treat every SemVer pre-release suffix as a pre-release ([#16](https://github.com/jtracht/claude-code-gitea/issues/16)) ([0a31037](https://github.com/jtracht/claude-code-gitea/commit/0a31037d493dfc2930062c7a4d47f2510d6f2652))
+
+
+### Documentation
+
+* add README, German docs, architecture, configuration and community files ([f5b6c89](https://github.com/jtracht/claude-code-gitea/commit/f5b6c892f00485a5d5c71cbf154a20c7769a82e4))
+
 ## [0.4.1](https://github.com/jtracht/claude-code-gitea/compare/v0.4.0...v0.4.1) (2026-10-21)
 
 
