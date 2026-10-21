@@ -1,0 +1,15 @@
+title = "claude-code-gitea gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Test fixtures: the Gitea OpenAPI document and obviously fake test tokens"
+paths = [
+  '''test/fixtures/gitea-swagger\.v1\.json''',
+]
+regexes = [
+  '''test-token-0123456789''',
+  '''mcp-test-token-abcdef0123''',
+  '''invalid-token-0{4,}''',
+]

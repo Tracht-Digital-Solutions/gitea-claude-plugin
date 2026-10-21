@@ -1,0 +1,40 @@
+name: Bug report
+description: Something does not work as expected
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! **Never paste API tokens.** For security problems use a private report (see SECURITY.md).
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: Include the tool name and the error code/message if there was one.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: true
+  - type: input
+    id: plugin
+    attributes:
+      label: Plugin version
+      placeholder: claude plugin list
+    validations:
+      required: true
+  - type: input
+    id: gitea
+    attributes:
+      label: Gitea (or Forgejo) version
+      description: Shown by the connection_test tool
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: Claude Code version, OS and Node.js version
+      placeholder: claude --version · Windows 11 · node 24.x

@@ -1,0 +1,176 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      ref:
+        description: Git ref to test (used by the release workflow)
+        type: string
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ inputs.ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  quality:
+    name: Quality (types, lint, format, docs, coverage)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Audit shipped dependencies
+        run: npm audit --omit=dev --audit-level=high
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run format:check
+      - name: Generated tool reference is up to date
+        run: npm run docs:check
+      - name: Unit and MCP tests with coverage
+        run: npm run test:coverage
+
+  test:
+    name: Test (${{ matrix.os }}, Node ${{ matrix.node }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        node: [22, 24]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - name: Unit and MCP protocol tests
+        run: npm test
+      - name: Build bundled MCP server
+        run: npm run build
+      - name: MCP smoke test (stdio handshake, tool listing, error path)
+        run: npm run smoke
+
+  plugin:
+    name: Plugin and marketplace validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Install Claude Code CLI (pinned in ci-tools/package-lock.json)
+        run: |
+          npm ci --prefix ci-tools
+          echo "${GITHUB_WORKSPACE}/ci-tools/node_modules/.bin" >> "${GITHUB_PATH}"
+      - name: Validate plugin and marketplace manifests (strict) and version consistency
+        run: npm run validate:plugin
+      - name: Reproducible build and package
+        run: |
+          npm run build
+          node scripts/package-plugin.mjs out-a
+          npm run build
+          node scripts/package-plugin.mjs out-b
+          cmp out-a/SHA256SUMS out-b/SHA256SUMS
+          cat out-a/SHA256SUMS
+      - name: Check package contents
+        run: |
+          unzip -l out-a/gitea-plugin-*.zip
+          unzip -l out-a/gitea-plugin-*.zip | grep -q 'gitea/dist/server.mjs'
+          unzip -l out-a/gitea-plugin-*.zip | grep -q 'gitea/.claude-plugin/plugin.json'
+          if unzip -l out-a/gitea-plugin-*.zip | grep -E '\.(ts|map)$|node_modules|\.env'; then
+            echo "unexpected files in package"; exit 1
+          fi
+      - name: Load the packaged plugin with the Claude Code CLI
+        run: |
+          mkdir -p pkg && unzip -q out-a/gitea-plugin-*.zip -d pkg
+          claude plugin validate pkg/gitea --strict
+          npm run smoke -- pkg/gitea/dist/server.mjs
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: plugin-package
+          path: out-a/
+          retention-days: 14
+
+  integration:
+    name: Integration (Gitea ${{ matrix.gitea }} + Actions runner)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        gitea: ['28.2.0']
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Start isolated Gitea and act_runner
+        env:
+          GITEA_TEST_VERSION: ${{ matrix.gitea }}
+        run: npm run gitea:up
+      - name: Integration tests (every tool, OpenAPI conformance)
+        env:
+          GITEA_IT_REQUIRED: '1'
+        run: npm run test:integration
+      - name: Smoke test of the bundle against Gitea
+        run: |
+          npm run build
+          GITEA_URL="$(jq -r .url .gitea-test/env.json)"
+          GITEA_TOKEN="$(jq -r .token .gitea-test/env.json)"
+          export GITEA_URL GITEA_TOKEN
+          echo "::add-mask::${GITEA_TOKEN}"
+          GITEA_ALLOW_HTTP=true npm run smoke
+      - name: Gitea logs on failure
+        if: failure()
+        run: |
+          docker logs gitea-it 2>&1 | tail -100
+          docker logs gitea-it-runner 2>&1 | tail -50
+      - name: Stop test environment
+        if: always()
+        run: npm run gitea:down
+
+  ci-ok:
+    name: CI passed
+    if: always()
+    needs: [quality, test, plugin, integration]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: All required jobs succeeded
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          echo "$RESULTS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
+          echo "$RESULTS" | jq -e 'all(.[]; .result == "success")' > /dev/null
