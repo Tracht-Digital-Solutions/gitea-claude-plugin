@@ -1,6 +1,8 @@
 # Changelog
 
-## [0.2.0](https://github.com/jtracht/claude-code-gitea/compare/v0.1.0...v0.2.0) (2026-10-21)
+## 0.2.0 (2026-10-21)
+
+First published release.
 
 
 ### Features
@@ -23,7 +25,7 @@
 ## 0.1.0 (2026-10-21)
 
 > Not published. The release pipeline was stopped before publication and the draft was withdrawn
-> because the `release` skill was missing from the package; 0.1.1 is the first published version.
+> because the `release` skill was missing from the package; 0.2.0 is the first published version.
 
 
 ### Features
