@@ -98,9 +98,13 @@ Installing the plugin needs no `npm install` and no compiler. The version is rea
 `plugin.json` at runtime, so a release only changes manifests and the bundle is reproducible.
 
 **ADR-3 · Distribution via a `stable` branch.** `main` contains sources only. For each release the
-pipeline checks out the release tag, builds, verifies, and force-updates the `stable` branch to
-_tag + built bundle_. The marketplace entry uses a `git-subdir` source on `stable`, so installs
-always get exactly the tested release. The same files are published as a zip with checksums.
+pipeline runs the full CI against the release tag, builds, and appends a commit to the `stable`
+distribution branch whose tree is the tag's `plugin/` directory plus the built bundle (its own
+linear history: no force push, and no workflow files, which `GITHUB_TOKEN` may not push). The
+marketplace entry uses a `git-subdir` source on `stable`, so installs always get exactly the
+tested release. The same files are published as a zip with checksums, and `verify-release.yml`
+installs the published plugin from the marketplace and checks that the installed files are
+identical to that zip.
 
 **ADR-4 · Access levels instead of a single write flag.** read / write / destructive / admin, with
 destructive and admin off by default. Disabled tools are not registered, which also saves context.

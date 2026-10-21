@@ -195,69 +195,11 @@ jobs:
           gh release view "${TAG}" --repo "${REPO}"
 
   verify-install:
-    name: Install published plugin from the marketplace
+    name: Verify installation
     needs: [resolve, publish]
     if: ${{ !cancelled() && needs.publish.result == 'success' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
     permissions:
       contents: read
-    env:
-      TAG: ${{ needs.resolve.outputs.tag }}
-      VERSION: ${{ needs.resolve.outputs.version }}
-      REPO: ${{ github.repository }}
-      CLAUDE_CODE_PLUGIN_PREFER_HTTPS: '1'
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ needs.resolve.outputs.tag }}
-          persist-credentials: false
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 24
-          package-manager-cache: false
-      - run: npm ci
-      - name: Install Claude Code CLI (pinned in ci-tools/package-lock.json)
-        run: |
-          npm ci --prefix ci-tools
-          echo "${GITHUB_WORKSPACE}/ci-tools/node_modules/.bin" >> "${GITHUB_PATH}"
-      - name: Start a throwaway Gitea
-        env:
-          GITEA_TEST_RUNNER: '0'
-        run: npm run gitea:up
-      - name: Add marketplace and install the plugin
-        run: |
-          token="$(jq -r .token .gitea-test/env.json)"
-          echo "::add-mask::${token}"
-          claude plugin marketplace add "${REPO}"
-          claude plugin install gitea@jtracht-gitea \
-            --config "gitea_url=$(jq -r .url .gitea-test/env.json)" \
-            --config "gitea_token=${token}" \
-            --config allow_insecure_http=true
-          claude plugin list
-      - name: Installed version matches the release
-        run: |
-          claude plugin list --json | tee plugins.json
-          jq -e --arg v "${VERSION}" '[.. | objects | select(.version? == $v)] | length > 0' plugins.json
-      - name: Installed files match the release archive
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release download "${TAG}" --repo "${REPO}" --pattern "gitea-plugin-${VERSION}.zip" --pattern SHA256SUMS --dir dl
-          (cd dl && sha256sum --check --ignore-missing SHA256SUMS)
-          unzip -q "dl/gitea-plugin-${VERSION}.zip" -d dl/pkg
-          server="$(find ~/.claude/plugins -path '*/dist/server.mjs' -print -quit)"
-          installed="$(dirname "$(dirname "${server}")")"
-          echo "installed at ${installed}"
-          diff -r --exclude=.git --exclude=.orphaned_at "dl/pkg/gitea" "${installed}"
-      - name: MCP server of the installed plugin connects to Gitea
-        run: |
-          installed="$(find ~/.claude/plugins -path '*/dist/server.mjs' -print -quit)"
-          GITEA_URL="$(jq -r .url .gitea-test/env.json)"
-          GITEA_TOKEN="$(jq -r .token .gitea-test/env.json)"
-          export GITEA_URL GITEA_TOKEN
-          echo "::add-mask::${GITEA_TOKEN}"
-          GITEA_ALLOW_HTTP=true node scripts/smoke-mcp.mjs "${installed}"
-      - name: Stop test environment
-        if: always()
-        run: npm run gitea:down
+    uses: ./.github/workflows/verify-release.yml # zizmor: ignore[self-repository] -- the "./" form is the documented syntax for local reusable workflows
+    with:
+      tag: ${{ needs.resolve.outputs.tag }}

@@ -1,0 +1,107 @@
+name: Verify release
+
+# Installs the published plugin exactly like a user would (marketplace from GitHub, then
+# `claude plugin install`), checks that the installed version and files match the release
+# archive, and connects the installed MCP server to a throwaway Gitea instance.
+# Runs after every release, weekly as a marketplace health check, and on demand.
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: Release tag to verify (must be the latest release)
+        type: string
+        required: true
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to verify (default: latest release)'
+        type: string
+        required: false
+  schedule:
+    - cron: '41 5 * * 3' # weekly, Wednesday 05:41 UTC
+
+permissions:
+  contents: read
+
+jobs:
+  install:
+    name: Install published plugin from the marketplace
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      REPO: ${{ github.repository }}
+      CLAUDE_CODE_PLUGIN_PREFER_HTTPS: '1'
+    steps:
+      - name: Resolve release
+        id: r
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          latest="$(gh release view --repo "${REPO}" --json tagName --jq .tagName)"
+          tag="${INPUT_TAG:-${latest}}"
+          if [[ "${tag}" != "${latest}" ]]; then
+            echo "The marketplace serves the latest release (${latest}); ${tag} cannot be verified."; exit 1
+          fi
+          echo "tag=${tag}" >> "${GITHUB_OUTPUT}"
+          echo "version=${tag#v}" >> "${GITHUB_OUTPUT}"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ steps.r.outputs.tag }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - run: npm ci
+      - name: Install Claude Code CLI (pinned in ci-tools/package-lock.json)
+        run: |
+          npm ci --prefix ci-tools
+          echo "${GITHUB_WORKSPACE}/ci-tools/node_modules/.bin" >> "${GITHUB_PATH}"
+      - name: Start a throwaway Gitea
+        env:
+          GITEA_TEST_RUNNER: '0'
+        run: npm run gitea:up
+      - name: Add marketplace and install the plugin
+        run: |
+          token="$(jq -r .token .gitea-test/env.json)"
+          echo "::add-mask::${token}"
+          claude plugin marketplace add "${REPO}"
+          claude plugin install gitea@jtracht-gitea \
+            --config "gitea_url=$(jq -r .url .gitea-test/env.json)" \
+            --config "gitea_token=${token}" \
+            --config allow_insecure_http=true
+          claude plugin list
+      - name: Installed version matches the release
+        env:
+          VERSION: ${{ steps.r.outputs.version }}
+        run: |
+          claude plugin list --json | tee plugins.json
+          jq -e --arg v "${VERSION}" '[.. | objects | select(.version? == $v)] | length > 0' plugins.json
+      - name: Installed files match the release archive
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.r.outputs.tag }}
+          VERSION: ${{ steps.r.outputs.version }}
+        run: |
+          gh release download "${TAG}" --repo "${REPO}" --pattern "gitea-plugin-${VERSION}.zip" --pattern SHA256SUMS --dir dl
+          (cd dl && sha256sum --check --ignore-missing SHA256SUMS)
+          unzip -q "dl/gitea-plugin-${VERSION}.zip" -d dl/pkg
+          server="$(find ~/.claude/plugins/cache -path '*/dist/server.mjs' -print -quit)"
+          installed="$(dirname "$(dirname "${server}")")"
+          echo "installed at ${installed}"
+          # .in_use and .orphaned_at are markers Claude Code itself keeps in its plugin cache.
+          diff -r --exclude=.git --exclude=.in_use --exclude=.orphaned_at "dl/pkg/gitea" "${installed}"
+          echo "installed files are identical to gitea-plugin-${VERSION}.zip"
+      - name: MCP server of the installed plugin connects to Gitea
+        run: |
+          installed="$(find ~/.claude/plugins/cache -path '*/dist/server.mjs' -print -quit)"
+          GITEA_URL="$(jq -r .url .gitea-test/env.json)"
+          GITEA_TOKEN="$(jq -r .token .gitea-test/env.json)"
+          export GITEA_URL GITEA_TOKEN
+          echo "::add-mask::${GITEA_TOKEN}"
+          GITEA_ALLOW_HTTP=true node scripts/smoke-mcp.mjs "${installed}"
+      - name: Stop test environment
+        if: always()
+        run: npm run gitea:down

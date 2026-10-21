@@ -23,7 +23,8 @@ or inside Claude Code: `/plugin marketplace add jtracht/claude-code-gitea`, then
 `/plugin install gitea@jtracht-gitea`.
 
 The marketplace entry points to the `stable` branch, which contains exactly the files of the latest
-release (the tagged sources plus the built server). Updates arrive with
+release (the plugin directory of the release tag plus the built server, identical to the release
+zip). Updates arrive with
 `claude plugin update gitea@jtracht-gitea` or `/plugin marketplace update jtracht-gitea`; enable
 auto-update for the marketplace in `/plugin` → **Marketplaces** if you like.
 
