@@ -15,11 +15,11 @@ self-contained: nothing is downloaded or compiled during installation.
 ## Install from the marketplace
 
 ```bash
-claude plugin marketplace add jtracht/claude-code-gitea
+claude plugin marketplace add jtracht/gitea-claude-plugin
 claude plugin install gitea@jtracht-gitea
 ```
 
-or inside Claude Code: `/plugin marketplace add jtracht/claude-code-gitea`, then
+or inside Claude Code: `/plugin marketplace add jtracht/gitea-claude-plugin`, then
 `/plugin install gitea@jtracht-gitea`.
 
 The marketplace entry points to the `stable` branch, which contains exactly the files of the latest
@@ -41,8 +41,8 @@ Without a GitHub SSH key set `CLAUDE_CODE_PLUGIN_PREFER_HTTPS=1` before adding t
 ## Install a release archive manually
 
 ```bash
-curl -LO https://github.com/jtracht/claude-code-gitea/releases/download/vX.Y.Z/gitea-plugin-X.Y.Z.zip
-curl -LO https://github.com/jtracht/claude-code-gitea/releases/download/vX.Y.Z/SHA256SUMS
+curl -LO https://github.com/jtracht/gitea-claude-plugin/releases/download/vX.Y.Z/gitea-plugin-X.Y.Z.zip
+curl -LO https://github.com/jtracht/gitea-claude-plugin/releases/download/vX.Y.Z/SHA256SUMS
 sha256sum --check --ignore-missing SHA256SUMS
 unzip gitea-plugin-X.Y.Z.zip            # creates ./gitea
 claude --plugin-dir ./gitea
@@ -51,8 +51,8 @@ claude --plugin-dir ./gitea
 ## Build from source
 
 ```bash
-git clone https://github.com/jtracht/claude-code-gitea.git
-cd claude-code-gitea
+git clone https://github.com/jtracht/gitea-claude-plugin.git
+cd gitea-claude-plugin
 npm ci
 npm run build                 # writes plugin/dist/server.mjs
 claude --plugin-dir ./plugin

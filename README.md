@@ -1,8 +1,8 @@
 # Gitea for Claude Code
 
-[![CI](https://github.com/jtracht/claude-code-gitea/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/jtracht/claude-code-gitea/actions/workflows/ci.yml)
-[![Security](https://github.com/jtracht/claude-code-gitea/actions/workflows/security.yml/badge.svg?branch=main)](https://github.com/jtracht/claude-code-gitea/actions/workflows/security.yml)
-[![Release](https://img.shields.io/github/v/release/jtracht/claude-code-gitea?sort=semver)](https://github.com/jtracht/claude-code-gitea/releases)
+[![CI](https://github.com/jtracht/gitea-claude-plugin/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/jtracht/gitea-claude-plugin/actions/workflows/ci.yml)
+[![Security](https://github.com/jtracht/gitea-claude-plugin/actions/workflows/security.yml/badge.svg?branch=main)](https://github.com/jtracht/gitea-claude-plugin/actions/workflows/security.yml)
+[![Release](https://img.shields.io/github/v/release/jtracht/gitea-claude-plugin?sort=semver)](https://github.com/jtracht/gitea-claude-plugin/releases)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%E2%89%A522.19-339933?logo=node.js&logoColor=white)](https://nodejs.org)
 
@@ -48,16 +48,16 @@ Full list: [docs/TOOLS.md](docs/TOOLS.md).
 In Claude Code:
 
 ```text
-/plugin marketplace add jtracht/claude-code-gitea
+/plugin marketplace add jtracht/gitea-claude-plugin
 /plugin install gitea@jtracht-gitea
 ```
 
 Or from a terminal:
 
 ```bash
-claude plugin install gitea --marketplace jtracht/claude-code-gitea
+claude plugin install gitea --marketplace jtracht/gitea-claude-plugin
 # equivalent:
-claude plugin marketplace add jtracht/claude-code-gitea
+claude plugin marketplace add jtracht/gitea-claude-plugin
 claude plugin install gitea@jtracht-gitea
 ```
 
@@ -65,7 +65,7 @@ claude plugin install gitea@jtracht-gitea
 
 Claude Code then asks for the plugin options. You can change them at any time with `/plugin` → **gitea** → **Configure**, or `claude plugin configure gitea`. Run `/reload-plugins` (or restart Claude Code) afterwards.
 
-Offline / air-gapped: download `gitea-plugin-<version>.zip` from the [releases](https://github.com/jtracht/claude-code-gitea/releases), verify it against `SHA256SUMS`, unpack it and start Claude Code with `claude --plugin-dir ./gitea`.
+Offline / air-gapped: download `gitea-plugin-<version>.zip` from the [releases](https://github.com/jtracht/gitea-claude-plugin/releases), verify it against `SHA256SUMS`, unpack it and start Claude Code with `claude --plugin-dir ./gitea`.
 
 ## Configuration
 

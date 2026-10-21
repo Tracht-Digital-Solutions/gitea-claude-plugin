@@ -137,9 +137,9 @@ jobs:
       - name: Package plugin, source archive, SBOM and checksums
         run: |
           mkdir -p release
-          git archive --format=tar.gz --prefix="claude-code-gitea-${VERSION}/" \
-            -o "release/claude-code-gitea-${VERSION}-source.tar.gz" "${TAG}"
-          npm sbom --omit dev --sbom-format cyclonedx > "release/claude-code-gitea-${VERSION}.cdx.json"
+          git archive --format=tar.gz --prefix="gitea-claude-plugin-${VERSION}/" \
+            -o "release/gitea-claude-plugin-${VERSION}-source.tar.gz" "${TAG}"
+          npm sbom --omit dev --sbom-format cyclonedx > "release/gitea-claude-plugin-${VERSION}.cdx.json"
           node scripts/package-plugin.mjs release
           ls -l release
       - name: Smoke test the packaged plugin

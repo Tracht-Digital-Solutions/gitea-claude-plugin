@@ -22,7 +22,7 @@
   ],
   "packages": {
     ".": {
-      "package-name": "claude-code-gitea",
+      "package-name": "gitea-claude-plugin",
       "initial-version": "0.1.0",
       "extra-files": [
         { "type": "json", "path": "plugin/.claude-plugin/plugin.json", "jsonpath": "$.version" }

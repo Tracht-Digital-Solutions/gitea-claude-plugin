@@ -41,7 +41,7 @@ export class Runtime {
         maxRetries: this.config.maxRetries,
         caFile: this.config.caFile,
         useSystemCa: this.config.useSystemCa,
-        userAgent: `claude-code-gitea/${serverVersion()}`,
+        userAgent: `gitea-claude-plugin/${serverVersion()}`,
         ...this.httpOverrides,
       });
       this.clients.set(profile.name, client);
