@@ -4,6 +4,7 @@ import { registerSecret } from '../../security/redact.js';
 import {
   body,
   dateSchema,
+  listResult,
   ownerSchema,
   pagingShape,
   profileShape,
@@ -12,8 +13,9 @@ import {
   requireSomeFields,
 } from '../common.js';
 import { defineTool, type ToolContext, type ToolDefinition } from '../types.js';
-import { readTextFile } from './contents.js';
+import { readTextFile } from '../shared/repo-files.js';
 
+/** Webhooks, notifications, local git helpers and the repository health analysis. */
 const M = 'extended';
 
 const HOOK_EVENTS = [
@@ -56,6 +58,55 @@ async function hooksPath(
 ): Promise<string> {
   if (args.org) return `/orgs/${encodeURIComponent(args.org)}/hooks`;
   return `${(await ctx.repo(args)).api}/hooks`;
+}
+
+/** Which community and configuration files exist in the repository root (lower-cased names). */
+function communityFiles(names: Set<string>) {
+  const has = (re: RegExp) => [...names].some((n) => re.test(n));
+  return {
+    readme: has(/^readme(\.|$)/),
+    license: has(/^(license|licence|copying)(\.|$)/),
+    contributing: has(/^contributing(\.|$)/),
+    security: has(/^security(\.|$)/),
+    changelog: has(/^changelog(\.|$)/),
+    gitignore: names.has('.gitignore'),
+    ci_config: ['.gitea', '.github', '.forgejo'].some((d) => names.has(d)),
+  };
+}
+
+/** Facts collected by repo_analyze that the suggestions are derived from. */
+interface HealthFacts {
+  files: ReturnType<typeof communityFiles>;
+  isPrivate: boolean;
+  hasDescription: boolean;
+  hasTopics: boolean;
+  branch: string;
+  isProtected: boolean;
+  failedRuns: number;
+  recentRuns: number;
+  daysSince: number | undefined;
+}
+
+/** Improvement suggestions for a repository. */
+function healthSuggestions(f: HealthFacts): string[] {
+  const suggestions: string[] = [];
+  if (!f.files.readme) suggestions.push('Add a README describing purpose, setup and usage.');
+  if (!f.files.license) suggestions.push('Add a LICENSE file so others know how they may use the code.');
+  if (!f.files.contributing && !f.isPrivate) suggestions.push('Add CONTRIBUTING guidelines.');
+  if (!f.files.security && !f.isPrivate)
+    suggestions.push('Add a SECURITY policy describing how to report vulnerabilities.');
+  if (!f.isProtected)
+    suggestions.push(`Protect the default branch "${f.branch}" (required reviews / status checks).`);
+  if (!f.files.ci_config) suggestions.push('Add CI (e.g. a Gitea Actions workflow in .gitea/workflows).');
+  if (f.failedRuns > 0)
+    suggestions.push(
+      `${f.failedRuns} of the last ${f.recentRuns} Actions runs failed; inspect them with actions_failures_analyze.`,
+    );
+  if (f.daysSince !== undefined && f.daysSince > 180)
+    suggestions.push(`No commits for ${f.daysSince} days; consider archiving if unmaintained.`);
+  if (!f.hasDescription) suggestions.push('Add a repository description.');
+  if (!f.hasTopics) suggestions.push('Add topics to make the repository discoverable.');
+  return suggestions;
 }
 
 export const extendedTools: ToolDefinition[] = [
@@ -228,7 +279,7 @@ export const extendedTools: ToolDefinition[] = [
         { all: args.all || undefined, 'subject-type': args.subject_type, since: args.since },
         args,
       );
-      return { has_more: res.hasMore, notifications: res.items.map(slimNotification) };
+      return listResult(res, 'notifications', slimNotification);
     },
   }),
   defineTool({
@@ -303,23 +354,13 @@ export const extendedTools: ToolDefinition[] = [
         ),
       ]);
       const names = new Set((rootFiles ?? []).map((f) => f.name.toLowerCase()));
-      const has = (re: RegExp) => [...names].some((n) => re.test(n));
-      const ciDirs = ['.gitea', '.github', '.forgejo'].filter((d) => names.has(d));
       const lastCommit = commits?.[0];
       const lastDate = lastCommit?.commit.author.date;
       const daysSince = lastDate ? Math.round((Date.now() - Date.parse(lastDate)) / 86_400_000) : undefined;
       const slimRuns = (runs ?? []).map(slimRun);
       const failed = slimRuns.filter((r) => (r as { conclusion?: string }).conclusion === 'failure').length;
       const isProtected = (protections ?? []).some((p) => (p.rule_name ?? p.branch_name) === branch);
-      const files = {
-        readme: has(/^readme(\.|$)/),
-        license: has(/^(license|licence|copying)(\.|$)/),
-        contributing: has(/^contributing(\.|$)/),
-        security: has(/^security(\.|$)/),
-        changelog: has(/^changelog(\.|$)/),
-        gitignore: names.has('.gitignore'),
-        ci_config: ciDirs.length > 0,
-      };
+      const files = communityFiles(names);
       let workflowsPresent = false;
       if (names.has('.gitea')) {
         workflowsPresent = Boolean(
@@ -328,24 +369,17 @@ export const extendedTools: ToolDefinition[] = [
           ),
         );
       }
-      const suggestions: string[] = [];
-      if (!files.readme) suggestions.push('Add a README describing purpose, setup and usage.');
-      if (!files.license) suggestions.push('Add a LICENSE file so others know how they may use the code.');
-      if (!files.contributing && !info.private) suggestions.push('Add CONTRIBUTING guidelines.');
-      if (!files.security && !info.private)
-        suggestions.push('Add a SECURITY policy describing how to report vulnerabilities.');
-      if (!isProtected)
-        suggestions.push(`Protect the default branch "${branch}" (required reviews / status checks).`);
-      if (!files.ci_config) suggestions.push('Add CI (e.g. a Gitea Actions workflow in .gitea/workflows).');
-      if (failed > 0)
-        suggestions.push(
-          `${failed} of the last ${slimRuns.length} Actions runs failed; inspect them with actions_failures_analyze.`,
-        );
-      if (daysSince !== undefined && daysSince > 180)
-        suggestions.push(`No commits for ${daysSince} days; consider archiving if unmaintained.`);
-      if (!info.description) suggestions.push('Add a repository description.');
-      if (!Array.isArray(info.topics) || info.topics.length === 0)
-        suggestions.push('Add topics to make the repository discoverable.');
+      const suggestions = healthSuggestions({
+        files,
+        isPrivate: Boolean(info.private),
+        hasDescription: Boolean(info.description),
+        hasTopics: Array.isArray(info.topics) && info.topics.length > 0,
+        branch,
+        isProtected,
+        failedRuns: failed,
+        recentRuns: slimRuns.length,
+        daysSince,
+      });
       const readme = files.readme
         ? await soft(
             readTextFile(ctx, repo, [...names].find((n) => /^readme/.test(n)) ?? 'README.md', branch),

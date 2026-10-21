@@ -1,9 +1,10 @@
 import * as z from 'zod/v4';
-import { GiteaError } from '../../gitea/errors.js';
+import { GiteaError, ifFound, isGiteaError } from '../../gitea/errors.js';
 import { compact } from '../../gitea/models.js';
 import { profileShape, repoShape, truncateText } from '../common.js';
 import { defineTool, type ToolContext, type ToolDefinition } from '../types.js';
 
+/** Repository wiki pages. */
 const M = 'wiki';
 
 interface RawPage {
@@ -30,12 +31,7 @@ const slimMeta = (p: RawPage) =>
 
 /** Gitea addresses pages by their URL name; accept the title as well. */
 async function resolvePage(ctx: ToolContext, base: string, page: string): Promise<string> {
-  try {
-    await ctx.client.request({ path: `${base}/page/${encodeURIComponent(page)}` });
-    return page;
-  } catch (err) {
-    if (!(err instanceof GiteaError) || err.code !== 'NOT_FOUND') throw err;
-  }
+  if (await ifFound(ctx.client.request({ path: `${base}/page/${encodeURIComponent(page)}` }))) return page;
   const pages = await ctx.client.paginate<RawPage>(`${base}/pages`, {}, { limit: 1000 });
   const found = pages.items.find(
     (p) => p.title.toLowerCase() === page.toLowerCase() || p.sub_url?.toLowerCase() === page.toLowerCase(),
@@ -139,7 +135,7 @@ export const wikiTools: ToolDefinition[] = [
           body: compact({ title: args.title, content_base64: b64(args.content), message: args.message }),
         })
         .catch(async (err: unknown) => {
-          if (err instanceof GiteaError && err.code === 'NOT_FOUND') {
+          if (isGiteaError(err, 'NOT_FOUND')) {
             const info = await ctx.client
               .request<{ has_wiki?: boolean }>({ path: repo.api })
               .catch(() => undefined);

@@ -6,6 +6,7 @@ import {
   colorSchema,
   dateSchema,
   indexSchema,
+  listResult,
   pagingShape,
   profileShape,
   repoShape,
@@ -14,6 +15,7 @@ import {
 } from '../common.js';
 import { defineTool, type ToolContext, type RepoRef, type ToolDefinition } from '../types.js';
 
+/** Issues, comments, labels, milestones and the issue summary used for triage. */
 const M = 'issues';
 
 interface RawIssue {
@@ -228,7 +230,7 @@ export const issueTools: ToolDefinition[] = [
       state: stateSchema,
       type: z.enum(['issues', 'pulls']).optional(),
       labels: z.array(z.string()).optional(),
-      owner: z.string().optional().describe('Only repositories of this repo.owner.'),
+      owner: z.string().optional().describe('Only repositories of this owner.'),
       assigned: z.boolean().optional().describe('Only issues assigned to you.'),
       created: z.boolean().optional().describe('Only issues you created.'),
       mentioned: z.boolean().optional(),
@@ -255,7 +257,7 @@ export const issueTools: ToolDefinition[] = [
         },
         args,
       );
-      return { total: res.totalCount, has_more: res.hasMore, issues: res.items.map((i) => slimIssue(i)) };
+      return listResult(res, 'issues', slimIssue);
     },
   }),
   defineTool({
@@ -675,7 +677,7 @@ export const issueTools: ToolDefinition[] = [
         { state: args.state, name: args.name },
         args,
       );
-      return { has_more: res.hasMore, milestones: res.items.map(slimMilestone) };
+      return listResult(res, 'milestones', slimMilestone);
     },
   }),
   defineTool({

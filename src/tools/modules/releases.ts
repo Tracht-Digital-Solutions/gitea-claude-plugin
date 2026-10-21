@@ -1,13 +1,14 @@
-import { openAsBlob, statSync } from 'node:fs';
-import { basename, isAbsolute, relative, resolve } from 'node:path';
 import * as z from 'zod/v4';
-import { GiteaError } from '../../gitea/errors.js';
+import { GiteaError, ifFound } from '../../gitea/errors.js';
 import { FormData } from '../../gitea/http.js';
 import { slimAsset, slimCommit, slimRelease } from '../../gitea/models.js';
+import { readWorkdirFile } from '../../security/workdir.js';
 import { body, pagingShape, profileShape, repoShape, requireSomeFields } from '../common.js';
 import { defineTool, type ToolContext, type RepoRef, type ToolDefinition } from '../types.js';
+import { defaultBranch } from '../shared/repo-files.js';
 import { commitType } from './git.js';
 
+/** Releases, release assets and release notes generated from Conventional Commits. */
 const M = 'releases';
 const tagInput = z.string().min(1).max(255).describe('Tag name, e.g. v1.2.0');
 const releaseRef = z
@@ -130,16 +131,10 @@ async function generateNotes(
 ) {
   const prev = previous ?? (await previousReleaseTag(ctx, repo, tag, includePrerelease));
   // An existing tag is the head; for a tag that is about to be created, use its target branch.
-  const tagExists = await ctx.client
-    .request({ path: `${repo.api}/tags/${encodeURIComponent(tag)}` })
-    .then(() => true)
-    .catch((err: unknown) => {
-      if (err instanceof GiteaError && err.code === 'NOT_FOUND') return false;
-      throw err;
-    });
-  const head =
-    (tagExists ? tag : target) ??
-    (await ctx.client.request<{ default_branch: string }>({ path: repo.api })).data.default_branch;
+  const tagExists =
+    (await ifFound(ctx.client.request({ path: `${repo.api}/tags/${encodeURIComponent(tag)}` }))) !==
+    undefined;
+  const head = (tagExists ? tag : target) ?? (await defaultBranch(ctx, repo));
   const commits = await commitsBetween(ctx, repo, prev, head);
   const compareUrl = prev
     ? new URL(`${repo.fullName}/compare/${prev}...${tag}`, ctx.profile.baseUrl).href
@@ -151,22 +146,8 @@ async function generateNotes(
   };
 }
 
-function safeLocalFile(cwd: string, requested: string): string {
-  const full = isAbsolute(requested) ? resolve(requested) : resolve(cwd, requested);
-  const rel = relative(resolve(cwd), full);
-  if (rel.startsWith('..') || isAbsolute(rel)) {
-    throw new GiteaError(
-      'INVALID_INPUT',
-      `Only files inside the working directory (${cwd}) can be uploaded.`,
-      {
-        hint: 'This prevents accidentally uploading private files such as SSH keys. Copy the file into the project first.',
-      },
-    );
-  }
-  const st = statSync(full, { throwIfNoEntry: false });
-  if (!st?.isFile()) throw new GiteaError('INVALID_INPUT', `${requested} is not a file.`);
-  return full;
-}
+/** Largest file uploaded as a release asset. */
+const MAX_ASSET_BYTES = 500 * 1024 * 1024;
 
 export const releaseTools: ToolDefinition[] = [
   defineTool({
@@ -380,10 +361,10 @@ export const releaseTools: ToolDefinition[] = [
     async run(args, ctx) {
       const repo = await ctx.repo(args);
       const rel = await getRelease(ctx, repo, args.release);
-      const full = safeLocalFile(ctx.cwd, args.file);
-      const name = args.name ?? basename(full);
+      const file = await readWorkdirFile(ctx.cwd, args.file, MAX_ASSET_BYTES);
+      const name = args.name ?? file.name;
       const form = new FormData();
-      form.append('attachment', await openAsBlob(full), name);
+      form.append('attachment', new Blob([file.data]), name);
       const res = await ctx.client.request({
         method: 'POST',
         path: `${repo.api}/releases/${rel.id}/assets`,

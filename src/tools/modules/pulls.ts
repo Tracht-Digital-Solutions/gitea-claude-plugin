@@ -1,5 +1,6 @@
 import * as z from 'zod/v4';
 import { GiteaError } from '../../gitea/errors.js';
+import { globMatch } from '../../util/glob.js';
 import {
   compact,
   slimCommit,
@@ -8,11 +9,20 @@ import {
   slimReview,
   slimReviewComment,
 } from '../../gitea/models.js';
-import { body, indexSchema, pagingShape, profileShape, repoShape, requireSomeFields } from '../common.js';
+import {
+  body,
+  indexSchema,
+  listResult,
+  pagingShape,
+  profileShape,
+  repoShape,
+  requireSomeFields,
+} from '../common.js';
 import { defineTool, type ToolContext, type RepoRef, type ToolDefinition } from '../types.js';
 import { formatDiff } from './git.js';
 import { resolveLabelIds, resolveMilestoneId } from './issues.js';
 
+/** Pull requests: list, create, review, merge readiness, merge and branch updates. */
 const M = 'pull_requests';
 
 interface RawPull {
@@ -46,13 +56,50 @@ interface ProtectionRule {
   block_on_official_review_requests?: boolean;
 }
 
-function globMatch(pattern: string, name: string): boolean {
-  const escape = (s: string) => s.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
-  const source = pattern
-    .split('**')
-    .map((part) => part.split('*').map(escape).join('[^/]*'))
-    .join('.*');
-  return new RegExp(`^${source}$`).test(name);
+interface CombinedStatus {
+  state: string;
+  statuses?: { context: string; status: string }[];
+}
+
+/** Counts approvals and change requests, using only the latest non-dismissed review per reviewer. */
+function tallyReviews(reviews: RawReview[]) {
+  const latest = new Map<string, RawReview>();
+  for (const r of reviews) {
+    const who = r.user?.login;
+    if (!who || r.state === 'COMMENT' || r.state === 'PENDING' || r.state === 'REQUEST_REVIEW') continue;
+    latest.set(who, r);
+  }
+  const effective = [...latest.values()].filter((r) => !r.dismissed);
+  return {
+    approvals: effective.filter((r) => r.state === 'APPROVED' && !r.stale).length,
+    changesRequested: effective.filter((r) => r.state === 'REQUEST_CHANGES').map((r) => r.user?.login),
+  };
+}
+
+/**
+ * Status-check blockers required by the protection rule, or a warning about the combined status
+ * when the rule does not require checks.
+ */
+function statusFindings(rule: ProtectionRule | undefined, status: CombinedStatus) {
+  const blockers: string[] = [];
+  const warnings: string[] = [];
+  const statuses = status.statuses ?? [];
+  if (rule?.enable_status_check) {
+    const contexts = rule.status_check_contexts ?? [];
+    const relevant = contexts.length
+      ? statuses.filter((s) => contexts.some((c) => globMatch(c, s.context)))
+      : statuses;
+    const failing = relevant.filter((s) => s.status !== 'success');
+    if (failing.length)
+      blockers.push(
+        `Required status checks not successful: ${failing.map((s) => `${s.context}=${s.status}`).join(', ')}.`,
+      );
+    const missing = contexts.filter((c) => !statuses.some((s) => globMatch(c, s.context)));
+    if (missing.length) blockers.push(`Required status checks have not reported: ${missing.join(', ')}.`);
+  } else if (status.state !== 'success' && statuses.length > 0) {
+    warnings.push(`Combined commit status is "${status.state}".`);
+  }
+  return { blockers, warnings };
 }
 
 /**
@@ -65,7 +112,7 @@ export async function mergeReadiness(ctx: ToolContext, repo: RepoRef, index: num
   const [reviews, status, protections] = await Promise.all([
     ctx.client.paginate<RawReview>(`${base}/pulls/${index}/reviews`, {}, { limit: 200 }).then((r) => r.items),
     ctx.client
-      .request<{ state: string; statuses?: { context: string; status: string }[] }>({
+      .request<CombinedStatus>({
         path: `${base}/commits/${encodeURIComponent(pr.head.sha)}/status`,
       })
       .then((r) => r.data)
@@ -80,16 +127,7 @@ export async function mergeReadiness(ctx: ToolContext, repo: RepoRef, index: num
     return name === pr.base.ref || globMatch(name, pr.base.ref);
   });
 
-  // Latest review per reviewer counts.
-  const latest = new Map<string, RawReview>();
-  for (const r of reviews) {
-    const who = r.user?.login;
-    if (!who || r.state === 'COMMENT' || r.state === 'PENDING' || r.state === 'REQUEST_REVIEW') continue;
-    latest.set(who, r);
-  }
-  const effective = [...latest.values()].filter((r) => !r.dismissed);
-  const approvals = effective.filter((r) => r.state === 'APPROVED' && !r.stale).length;
-  const changesRequested = effective.filter((r) => r.state === 'REQUEST_CHANGES').map((r) => r.user?.login);
+  const { approvals, changesRequested } = tallyReviews(reviews);
 
   const blockers: string[] = [];
   const warnings: string[] = [];
@@ -108,21 +146,9 @@ export async function mergeReadiness(ctx: ToolContext, repo: RepoRef, index: num
     );
   }
   if (status) {
-    if (rule?.enable_status_check) {
-      const contexts = rule.status_check_contexts ?? [];
-      const relevant = contexts.length
-        ? (status.statuses ?? []).filter((s) => contexts.some((c) => globMatch(c, s.context)))
-        : (status.statuses ?? []);
-      const failing = relevant.filter((s) => s.status !== 'success');
-      if (failing.length)
-        blockers.push(
-          `Required status checks not successful: ${failing.map((s) => `${s.context}=${s.status}`).join(', ')}.`,
-        );
-      const missing = contexts.filter((c) => !(status.statuses ?? []).some((s) => globMatch(c, s.context)));
-      if (missing.length) blockers.push(`Required status checks have not reported: ${missing.join(', ')}.`);
-    } else if (status.state !== 'success' && (status.statuses ?? []).length > 0) {
-      warnings.push(`Combined commit status is "${status.state}".`);
-    }
+    const checks = statusFindings(rule, status);
+    blockers.push(...checks.blockers);
+    warnings.push(...checks.warnings);
   }
   return {
     pull: slimPull(pr),
@@ -183,7 +209,7 @@ export const pullTools: ToolDefinition[] = [
         },
         args,
       );
-      return { total: res.totalCount, has_more: res.hasMore, pulls: res.items.map((p) => slimPull(p)) };
+      return listResult(res, 'pulls', slimPull);
     },
   }),
   defineTool({
@@ -410,7 +436,7 @@ export const pullTools: ToolDefinition[] = [
         { verification: false, files: false },
         args,
       );
-      return { total: res.totalCount, has_more: res.hasMore, commits: res.items.map((c) => slimCommit(c)) };
+      return listResult(res, 'commits', slimCommit);
     },
   }),
   defineTool({

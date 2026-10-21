@@ -1,8 +1,9 @@
 import * as z from 'zod/v4';
-import { GiteaError } from '../../gitea/errors.js';
+import { ifFound } from '../../gitea/errors.js';
 import { slimRepo } from '../../gitea/models.js';
 import {
   body,
+  listResult,
   nameSchema,
   ownerSchema,
   pagingShape,
@@ -12,6 +13,7 @@ import {
 } from '../common.js';
 import { defineTool, type ToolDefinition } from '../types.js';
 
+/** Repositories: list, search, create, update, fork, archive, visibility and deletion. */
 const M = 'repositories';
 
 export const repoTools: ToolDefinition[] = [
@@ -33,14 +35,13 @@ export const repoTools: ToolDefinition[] = [
       if (!args.owner) {
         result = await ctx.client.paginate('/user/repos', {}, opts);
       } else {
-        try {
-          result = await ctx.client.paginate(`/orgs/${encodeURIComponent(args.owner)}/repos`, {}, opts);
-        } catch (err) {
-          if (!(err instanceof GiteaError) || err.code !== 'NOT_FOUND') throw err;
-          result = await ctx.client.paginate(`/users/${encodeURIComponent(args.owner)}/repos`, {}, opts);
-        }
+        // The owner may be an organisation or a user; Gitea has a separate endpoint for each.
+        const owner = encodeURIComponent(args.owner);
+        result =
+          (await ifFound(ctx.client.paginate(`/orgs/${owner}/repos`, {}, opts))) ??
+          (await ctx.client.paginate(`/users/${owner}/repos`, {}, opts));
       }
-      return { total: result.totalCount, has_more: result.hasMore, repositories: result.items.map(slimRepo) };
+      return listResult(result, 'repositories', slimRepo);
     },
   }),
   defineTool({
@@ -79,7 +80,7 @@ export const repoTools: ToolDefinition[] = [
         },
         { limit: args.limit, page: args.page },
       );
-      return { total: res.totalCount, has_more: res.hasMore, repositories: res.items.map(slimRepo) };
+      return listResult(res, 'repositories', slimRepo);
     },
   }),
   defineTool({
@@ -308,7 +309,7 @@ export const repoTools: ToolDefinition[] = [
     async run(args, ctx) {
       const repo = await ctx.repo(args);
       const res = await ctx.client.paginate(`${repo.api}/forks`, {}, args);
-      return { total: res.totalCount, has_more: res.hasMore, forks: res.items.map(slimRepo) };
+      return listResult(res, 'forks', slimRepo);
     },
   }),
   defineTool({

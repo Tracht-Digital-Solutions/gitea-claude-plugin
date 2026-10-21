@@ -109,6 +109,6 @@ export function listResult<T, K extends string>(
   const out: Record<string, unknown> = {};
   if (page.totalCount !== undefined) out.total = page.totalCount;
   out.has_more = page.hasMore;
-  out[key] = page.items.map(map);
+  out[key] = page.items.map((item) => map(item));
   return out as { total?: number; has_more: boolean } & Record<K, unknown[]>;
 }

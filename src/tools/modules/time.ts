@@ -4,6 +4,7 @@ import { compact } from '../../gitea/models.js';
 import { dateSchema, indexSchema, pagingShape, profileShape, repoShape } from '../common.js';
 import { defineTool, type ToolDefinition } from '../types.js';
 
+/** Time tracking: tracked times and stopwatches of issues and pull requests. */
 const M = 'time_tracking';
 
 interface RawTime {

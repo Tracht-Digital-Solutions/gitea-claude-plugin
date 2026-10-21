@@ -4,29 +4,21 @@ import { GiteaError } from '../../gitea/errors.js';
 import { compact } from '../../gitea/models.js';
 import { filePath } from '../../security/url.js';
 import { body, profileShape, refSchema, repoShape, truncateText } from '../common.js';
-import { defineTool, type ToolContext, type RepoRef, type ToolDefinition } from '../types.js';
+import { mapLimit } from '../../util/concurrency.js';
+import { globToRegExp, isGlob } from '../../util/glob.js';
+import {
+  defaultBranch,
+  fileSha,
+  getContent,
+  isBinary,
+  listTree,
+  readTextFile,
+  type ContentEntry,
+} from '../shared/repo-files.js';
+import { defineTool, type ToolDefinition } from '../types.js';
 
+/** Repository files: read, list, search, compare, and create/update/delete single or multiple files. */
 const M = 'repositories';
-
-interface ContentEntry {
-  type: string;
-  name: string;
-  path: string;
-  sha: string;
-  size: number;
-  content?: string | null;
-  encoding?: string | null;
-  target?: string | null;
-  last_commit_sha?: string;
-  html_url?: string;
-}
-
-interface TreeEntry {
-  path: string;
-  type: 'blob' | 'tree' | 'commit';
-  size?: number;
-  sha: string;
-}
 
 const pathSchema = z.string().min(1).max(4096).describe('File path inside the repository, e.g. src/index.ts');
 const commitShape = {
@@ -51,108 +43,6 @@ function commitBody(args: {
   const author =
     args.author_name && args.author_email ? { name: args.author_name, email: args.author_email } : undefined;
   return body({ branch: args.branch, new_branch: args.new_branch, message: args.message, author });
-}
-
-function isBinary(buf: Buffer): boolean {
-  const sample = buf.subarray(0, 8000);
-  return sample.includes(0);
-}
-
-export async function getContent(
-  ctx: ToolContext,
-  repo: RepoRef,
-  path: string,
-  ref?: string,
-): Promise<ContentEntry | ContentEntry[]> {
-  const res = await ctx.client.request<ContentEntry | ContentEntry[]>({
-    path: `${repo.api}/contents/${filePath(path)}`,
-    query: { ref },
-  });
-  return res.data;
-}
-
-/** Reads a text file; returns undefined if it does not exist at that ref. */
-export async function readTextFile(
-  ctx: ToolContext,
-  repo: RepoRef,
-  path: string,
-  ref?: string,
-): Promise<string | undefined> {
-  try {
-    const res = await ctx.client.request<Buffer>({
-      path: `${repo.api}/raw/${filePath(path)}`,
-      query: { ref },
-      responseType: 'binary',
-      maxBytes: 2 * 1024 * 1024,
-    });
-    if (isBinary(res.data)) throw new GiteaError('INVALID_INPUT', `${path} is a binary file.`);
-    return res.data.toString('utf8');
-  } catch (err) {
-    if (err instanceof GiteaError && err.code === 'NOT_FOUND') return undefined;
-    throw err;
-  }
-}
-
-async function currentSha(ctx: ToolContext, repo: RepoRef, path: string, ref?: string) {
-  const entry = await getContent(ctx, repo, path, ref);
-  if (Array.isArray(entry) || entry.type !== 'file') {
-    throw new GiteaError('INVALID_INPUT', `${path} is not a regular file.`);
-  }
-  return entry.sha;
-}
-
-async function listTree(ctx: ToolContext, repo: RepoRef, ref: string, maxEntries: number) {
-  const entries: TreeEntry[] = [];
-  let truncated = false;
-  for (let page = 1; entries.length < maxEntries; page++) {
-    const res = await ctx.client.request<{ tree?: TreeEntry[]; truncated?: boolean; total_count?: number }>({
-      path: `${repo.api}/git/trees/${encodeURIComponent(ref)}`,
-      query: { recursive: true, page, per_page: 1000 },
-    });
-    const tree = res.data.tree ?? [];
-    entries.push(...tree);
-    if (!res.data.truncated || tree.length === 0) break;
-    truncated = true;
-    if (res.data.total_count !== undefined && entries.length >= res.data.total_count) {
-      truncated = false;
-      break;
-    }
-  }
-  return { entries: entries.slice(0, maxEntries), truncated: truncated || entries.length > maxEntries };
-}
-
-async function defaultBranch(ctx: ToolContext, repo: RepoRef): Promise<string> {
-  const res = await ctx.client.request<{ default_branch: string }>({ path: repo.api });
-  return res.data.default_branch;
-}
-
-function globToRegExp(glob: string): RegExp {
-  let re = '';
-  for (let i = 0; i < glob.length; i++) {
-    const c = glob[i]!;
-    if (c === '*') {
-      if (glob[i + 1] === '*') {
-        re += '.*';
-        i++;
-        if (glob[i + 1] === '/') i++;
-      } else re += '[^/]*';
-    } else if (c === '?') re += '[^/]';
-    else re += c.replace(/[.+^${}()|[\]\\]/g, '\\$&');
-  }
-  return new RegExp(`^${re}$`, 'i');
-}
-
-async function mapLimit<T, R>(items: T[], concurrency: number, fn: (item: T) => Promise<R>): Promise<R[]> {
-  const results: R[] = new Array<R>(items.length);
-  let next = 0;
-  const workers = Array.from({ length: Math.min(concurrency, items.length) }, async () => {
-    while (next < items.length) {
-      const i = next++;
-      results[i] = await fn(items[i]!);
-    }
-  });
-  await Promise.all(workers);
-  return results;
 }
 
 export const contentTools: ToolDefinition[] = [
@@ -284,8 +174,7 @@ export const contentTools: ToolDefinition[] = [
       const repo = await ctx.repo(args);
       const ref = args.ref ?? (await defaultBranch(ctx, repo));
       const { entries, truncated } = await listTree(ctx, repo, ref, 50_000);
-      const isGlob = /[*?]/.test(args.pattern);
-      const re = isGlob ? globToRegExp(args.pattern) : undefined;
+      const re = isGlob(args.pattern) ? globToRegExp(args.pattern, { caseInsensitive: true }) : undefined;
       const needle = args.pattern.toLowerCase();
       const matches = entries
         .filter((e) => e.type === 'blob')
@@ -327,7 +216,7 @@ export const contentTools: ToolDefinition[] = [
         throw new GiteaError('INVALID_INPUT', `Invalid regular expression: ${(err as Error).message}`);
       }
       const { entries } = await listTree(ctx, repo, ref, 50_000);
-      const glob = args.path_glob ? globToRegExp(args.path_glob) : undefined;
+      const glob = args.path_glob ? globToRegExp(args.path_glob, { caseInsensitive: true }) : undefined;
       const candidates = entries.filter(
         (e) => e.type === 'blob' && (e.size ?? 0) <= 512 * 1024 && (!glob || glob.test(e.path)),
       );
@@ -420,7 +309,7 @@ export const contentTools: ToolDefinition[] = [
     async run(args, ctx) {
       const repo = await ctx.repo(args);
       const sourcePath = args.from_path ?? args.path;
-      const sha = args.sha ?? (await currentSha(ctx, repo, sourcePath, args.branch));
+      const sha = args.sha ?? (await fileSha(ctx, repo, sourcePath, args.branch));
       const res = await ctx.client.request<{
         commit?: { sha?: string; html_url?: string };
         content?: { sha?: string };
@@ -468,7 +357,7 @@ export const contentTools: ToolDefinition[] = [
     },
     async run(args, ctx) {
       const repo = await ctx.repo(args);
-      const sha = args.sha ?? (await currentSha(ctx, repo, args.path, args.branch));
+      const sha = args.sha ?? (await fileSha(ctx, repo, args.path, args.branch));
       const res = await ctx.client.request<{ commit?: { sha?: string } }>({
         method: 'DELETE',
         path: `${repo.api}/contents/${filePath(args.path)}`,
@@ -531,7 +420,7 @@ export const contentTools: ToolDefinition[] = [
         }
         const sha =
           f.operation === 'update' || f.operation === 'delete' || f.operation === 'rename'
-            ? await currentSha(ctx, repo, f.from_path ?? f.path, args.branch)
+            ? await fileSha(ctx, repo, f.from_path ?? f.path, args.branch)
             : undefined;
         files.push(
           body({

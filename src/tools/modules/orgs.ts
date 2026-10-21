@@ -3,6 +3,7 @@ import { GiteaError } from '../../gitea/errors.js';
 import { slimOrg, slimRepo, slimTeam, slimUser } from '../../gitea/models.js';
 import {
   body,
+  listResult,
   nameSchema,
   ownerSchema,
   pagingShape,
@@ -12,6 +13,7 @@ import {
 } from '../common.js';
 import { defineTool, type ToolContext, type ToolDefinition } from '../types.js';
 
+/** Users, organisations, teams and repository collaborators. */
 const M = 'organizations';
 const permissionSchema = z.enum(['read', 'write', 'admin']);
 const orgSchema = ownerSchema.describe('Organisation name');
@@ -70,7 +72,7 @@ export const orgTools: ToolDefinition[] = [
     input: { ...profileShape, query: z.string().min(1).max(100), ...pagingShape },
     async run(args, ctx) {
       const res = await ctx.client.paginate('/users/search', { q: args.query }, args);
-      return { has_more: res.hasMore, users: res.items.map(slimUser) };
+      return listResult(res, 'users', slimUser);
     },
   }),
   defineTool({
@@ -83,7 +85,7 @@ export const orgTools: ToolDefinition[] = [
     async run(args, ctx) {
       const path = args.username ? `/users/${encodeURIComponent(args.username)}/orgs` : '/user/orgs';
       const res = await ctx.client.paginate(path, {}, args);
-      return { has_more: res.hasMore, organizations: res.items.map(slimOrg) };
+      return listResult(res, 'organizations', slimOrg);
     },
   }),
   defineTool({
@@ -112,7 +114,7 @@ export const orgTools: ToolDefinition[] = [
     input: { ...profileShape, org: orgSchema, ...pagingShape },
     async run(args, ctx) {
       const res = await ctx.client.paginate(`/orgs/${encodeURIComponent(args.org)}/members`, {}, args);
-      return { has_more: res.hasMore, members: res.items.map(slimUser) };
+      return listResult(res, 'members', slimUser);
     },
   }),
   defineTool({
@@ -194,7 +196,7 @@ export const orgTools: ToolDefinition[] = [
     input: { ...profileShape, org: orgSchema, ...pagingShape },
     async run(args, ctx) {
       const res = await ctx.client.paginate(`/orgs/${encodeURIComponent(args.org)}/teams`, {}, args);
-      return { has_more: res.hasMore, teams: res.items.map(slimTeam) };
+      return listResult(res, 'teams', slimTeam);
     },
   }),
   defineTool({
@@ -441,7 +443,7 @@ export const orgTools: ToolDefinition[] = [
     module: M,
     title: 'Analyse repository access',
     description:
-      "Shows who can access a repository: your own permission, collaborators with their levels, the repo.owner organisation's teams with access to it, and branch protections. Useful for access reviews.",
+      "Shows who can access a repository: your own permission, collaborators with their levels, the owning organisation's teams with access to it, and branch protections. Useful for access reviews.",
     access: 'read',
     input: { ...profileShape, ...repoShape },
     async run(args, ctx) {

@@ -4,6 +4,8 @@ import { slimUser } from '../../gitea/models.js';
 import { profileShape } from '../common.js';
 import { defineTool, type ToolDefinition } from '../types.js';
 
+/** Connection diagnostics: server reachability, token validity and scopes, enabled access levels and profiles. */
+
 /** Read-only probes, one per token scope family. None of them has side effects. */
 const SCOPE_PROBES: { scope: string; path: string; paged: boolean }[] = [
   { scope: 'read:user', path: '/user', paged: false },

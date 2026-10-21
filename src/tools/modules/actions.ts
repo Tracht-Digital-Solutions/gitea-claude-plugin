@@ -1,13 +1,15 @@
 import { existsSync, statSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
-import { dirname, isAbsolute, relative, resolve } from 'node:path';
+import { dirname } from 'node:path';
 import * as z from 'zod/v4';
-import { GiteaError } from '../../gitea/errors.js';
+import { GiteaError, isGiteaError } from '../../gitea/errors.js';
+import { resolveInWorkdir } from '../../security/workdir.js';
 import { compact, slimJob, slimRun } from '../../gitea/models.js';
-import { body, pagingShape, profileShape, repoShape, truncateText } from '../common.js';
+import { body, listResult, pagingShape, profileShape, repoShape, truncateText } from '../common.js';
 import { defineTool, type ToolContext, type RepoRef, type ToolDefinition } from '../types.js';
-import { readTextFile } from './contents.js';
+import { readTextFile } from '../shared/repo-files.js';
 
+/** Gitea Actions: workflows, runs, jobs, logs, artifacts, runners, and failure analysis. */
 const M = 'actions';
 const runId = z.number().int().min(1).describe('Workflow run id');
 const jobId = z.number().int().min(1).describe('Job id');
@@ -51,14 +53,28 @@ async function jobLog(ctx: ToolContext, repo: RepoRef, job: number, maxBytes: nu
   return { text: res.data, truncated: res.truncated };
 }
 
-/** Restricts downloads to the working directory (or an explicit absolute path inside it). */
-function safeOutputPath(cwd: string, requested: string): string {
-  const full = isAbsolute(requested) ? resolve(requested) : resolve(cwd, requested);
-  const rel = relative(resolve(cwd), full);
-  if (rel.startsWith('..') || isAbsolute(rel)) {
-    throw new GiteaError('INVALID_INPUT', `Output path must be inside the working directory (${cwd}).`);
-  }
-  return full;
+/** A failed job with its failed steps and, if the server provides logs, the analysed log. */
+async function describeFailedJob(
+  ctx: ToolContext,
+  repo: RepoRef,
+  job: Record<string, unknown>,
+  withLog: boolean,
+  tailLines: number,
+) {
+  const log = withLog
+    ? await jobLog(ctx, repo, Number(job.id), 5 * 1024 * 1024)
+        .then((l): Record<string, unknown> => analyzeLog(l.text, tailLines))
+        .catch((err: unknown) => ({ unavailable: err instanceof GiteaError ? err.message : String(err) }))
+    : undefined;
+  const steps = Array.isArray(job.steps) ? (job.steps as Record<string, unknown>[]) : [];
+  return {
+    ...slimJob(job),
+    steps: undefined,
+    failed_steps: steps
+      .filter((s) => s.conclusion === 'failure' || s.status === 'failure')
+      .map((s) => s.name),
+    log,
+  };
 }
 
 export const actionTools: ToolDefinition[] = [
@@ -152,7 +168,7 @@ export const actionTools: ToolDefinition[] = [
         },
         { limit: args.limit, page: args.page, key: 'workflow_runs' },
       );
-      return { total: res.totalCount, has_more: res.hasMore, runs: res.items.map(slimRun) };
+      return listResult(res, 'runs', slimRun);
     },
   }),
   defineTool({
@@ -218,7 +234,7 @@ export const actionTools: ToolDefinition[] = [
     },
     async run(args, ctx) {
       const repo = await ctx.repo(args);
-      const caps = await ctx.capabilities();
+      const withLogs = (await ctx.capabilities()).features.actions_job_logs !== false;
       const path = args.workflow
         ? `${repo.api}/actions/workflows/${encodeURIComponent(args.workflow)}/runs`
         : `${repo.api}/actions/runs`;
@@ -234,23 +250,7 @@ export const actionTools: ToolDefinition[] = [
         const failed = jobs.filter((j) => j.conclusion === 'failure' || j.status === 'failure');
         const failedJobs = [];
         for (const job of failed.slice(0, 5)) {
-          let log: Record<string, unknown> | undefined;
-          if (caps.features.actions_job_logs !== false) {
-            log = await jobLog(ctx, repo, Number(job.id), 5 * 1024 * 1024)
-              .then((l) => analyzeLog(l.text, args.tail_lines))
-              .catch((err: unknown) => ({
-                unavailable: err instanceof GiteaError ? err.message : String(err),
-              }));
-          }
-          const steps = Array.isArray(job.steps) ? (job.steps as Record<string, unknown>[]) : [];
-          failedJobs.push({
-            ...slimJob(job),
-            steps: undefined,
-            failed_steps: steps
-              .filter((s) => s.conclusion === 'failure' || s.status === 'failure')
-              .map((s) => s.name),
-            log,
-          });
+          failedJobs.push(await describeFailedJob(ctx, repo, job, withLogs, args.tail_lines));
         }
         analysed.push({ ...slimRun(run), failed_jobs: failedJobs });
       }
@@ -407,7 +407,7 @@ export const actionTools: ToolDefinition[] = [
       });
       if (meta.data.expired) throw new GiteaError('NOT_FOUND', `Artifact ${args.artifact_id} has expired.`);
       const safeName = meta.data.name.replace(/[^A-Za-z0-9._-]/g, '_');
-      const target = safeOutputPath(ctx.cwd, args.output_path ?? `artifacts/${safeName}.zip`);
+      const target = resolveInWorkdir(ctx.cwd, args.output_path ?? `artifacts/${safeName}.zip`, 'write');
       if (existsSync(target) && !args.overwrite) {
         throw new GiteaError('CONFLICT', `${target} already exists. Set overwrite to true to replace it.`);
       }
@@ -432,7 +432,7 @@ export const actionTools: ToolDefinition[] = [
     module: M,
     title: 'List Actions runners',
     description:
-      'Lists the Actions runners that can pick up jobs of a repository, an organisation (org) or your user account: runners registered at that level plus those inherited from the repo.owner (user or organisation) and the whole instance (visible to admins), with status, labels and whether they are busy. Use it to find out why a workflow run stays queued.',
+      'Lists the Actions runners that can pick up jobs of a repository, an organisation (org) or your user account: runners registered at that level plus those inherited from the owner (user or organisation) and the whole instance (visible to admins), with status, labels and whether they are busy. Use it to find out why a workflow run stays queued.',
     access: 'read',
     feature: 'actions_runners',
     input: {
@@ -446,7 +446,7 @@ export const actionTools: ToolDefinition[] = [
     },
     async run(args, ctx) {
       // Levels whose runners can pick up jobs, most specific first. A job runs on any matching
-      // runner of the repository, its repo.owner (user or organisation) or the instance.
+      // runner of the repository, its owner (user or organisation) or the instance.
       const levels: { level: string; path: string }[] = [];
       if (args.scope === 'user') {
         levels.push({ level: 'user', path: '/user/actions/runners' });
@@ -498,7 +498,7 @@ export const actionTools: ToolDefinition[] = [
         } catch (err) {
           // The requested level must work; inherited levels may be hidden by missing permissions.
           if (i === 0) throw err;
-          if (err instanceof GiteaError && ['FORBIDDEN', 'NOT_FOUND', 'UNAUTHORIZED'].includes(err.code)) {
+          if (isGiteaError(err, 'FORBIDDEN', 'NOT_FOUND', 'UNAUTHORIZED')) {
             unavailable.push(l.level);
             continue;
           }

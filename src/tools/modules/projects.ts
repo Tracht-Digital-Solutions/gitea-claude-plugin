@@ -12,6 +12,7 @@ import {
 } from '../common.js';
 import { defineTool, type ToolContext, type ToolDefinition } from '../types.js';
 
+/** Project boards of repositories, organisations and users: projects, columns and cards. */
 const M = 'projects';
 
 interface RawProject {
@@ -48,7 +49,7 @@ const scopeShape = {
     .enum(['repo', 'org', 'user'])
     .default('repo')
     .describe(
-      'Where the project lives: a repository (repo.owner/repo.name), an organisation (org) or your user account.',
+      'Where the project lives: a repository (owner/repo), an organisation (org) or your user account.',
     ),
   org: ownerSchema.optional().describe('Organisation for scope "org".'),
 };
@@ -448,7 +449,7 @@ export const projectTools: ToolDefinition[] = [
     module: M,
     title: 'Add issues to project',
     description:
-      'Adds issues or pull requests (by number, from repo.owner/repo.name) to a project board column (title or id; default column if omitted).',
+      'Adds issues or pull requests (by number, from owner/repo) to a project board column (title or id; default column if omitted).',
     access: 'write',
     feature: 'projects',
     input: {

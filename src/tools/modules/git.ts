@@ -1,12 +1,13 @@
 import { createTwoFilesPatch } from 'diff';
 import * as z from 'zod/v4';
-import { GiteaError } from '../../gitea/errors.js';
+import { GiteaError, ifFound } from '../../gitea/errors.js';
 import { compact, slimBranch, slimBranchProtection, slimCommit, slimTag } from '../../gitea/models.js';
 import { localContext, pushBranch } from '../../git/local.js';
-import { readTextFile } from './contents.js';
+import { readTextFile } from '../shared/repo-files.js';
 import {
   body,
   dateSchema,
+  listResult,
   pagingShape,
   profileShape,
   refSchema,
@@ -15,6 +16,7 @@ import {
 } from '../common.js';
 import { defineTool, type ToolDefinition } from '../types.js';
 
+/** Branches, branch protection, commits, tags, tag protection, commit status and diffs. */
 const M = 'git';
 const branchName = z.string().min(1).max(255).describe('Branch name');
 const tagName = z
@@ -145,7 +147,7 @@ export const gitTools: ToolDefinition[] = [
     async run(args, ctx) {
       const repo = await ctx.repo(args);
       const res = await ctx.client.paginate(`${repo.api}/branches`, {}, args);
-      return { total: res.totalCount, has_more: res.hasMore, branches: res.items.map(slimBranch) };
+      return listResult(res, 'branches', slimBranch);
     },
   }),
   defineTool({
@@ -410,7 +412,7 @@ export const gitTools: ToolDefinition[] = [
     async run(args, ctx) {
       const repo = await ctx.repo(args);
       const res = await ctx.client.paginate(`${repo.api}/tags`, {}, args);
-      return { total: res.totalCount, has_more: res.hasMore, tags: res.items.map(slimTag) };
+      return listResult(res, 'tags', slimTag);
     },
   }),
   defineTool({
@@ -513,13 +515,9 @@ export const gitTools: ToolDefinition[] = [
       const repo = await ctx.repo(args);
       const { profile: _p, owner: _o, repo: _r, rule_name, ...fields } = args;
       const base = `${repo.api}/branch_protections`;
-      const exists = await ctx.client
-        .request({ path: `${base}/${encodeURIComponent(rule_name)}` })
-        .then(() => true)
-        .catch((err: unknown) => {
-          if (err instanceof GiteaError && err.code === 'NOT_FOUND') return false;
-          throw err;
-        });
+      const exists =
+        (await ifFound(ctx.client.request({ path: `${base}/${encodeURIComponent(rule_name)}` }))) !==
+        undefined;
       const res = exists
         ? await ctx.client.request({
             method: 'PATCH',
@@ -632,7 +630,7 @@ export const gitTools: ToolDefinition[] = [
     module: M,
     title: 'Inspect local git repository',
     description:
-      'Inspects the git repository in the current working directory: current branch, upstream, ahead/behind counts, uncommitted changes and which remote points to the configured Gitea server (repo.owner/repo.name). Use it before creating a pull request from local changes.',
+      'Inspects the git repository in the current working directory: current branch, upstream, ahead/behind counts, uncommitted changes and which remote points to the configured Gitea server (owner/repo). Use it before creating a pull request from local changes.',
     access: 'read',
     local: true,
     input: {
@@ -649,7 +647,7 @@ export const gitTools: ToolDefinition[] = [
       let note: string | undefined;
       if (!base) note = 'No Gitea server configured; remotes cannot be matched to Gitea repositories.';
       else if (!lc.remotes.some((r) => r.giteaRepo)) {
-        note = `No remote points to ${base.host}. Pass repo.owner/repo.name explicitly to the Gitea tools.`;
+        note = `No remote points to ${base.host}. Pass owner/repo explicitly to the Gitea tools.`;
       }
       return { ...lc, gitea_remote: lc.remotes.find((r) => r.giteaRepo)?.name, note };
     },
