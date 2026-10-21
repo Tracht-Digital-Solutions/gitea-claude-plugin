@@ -2,6 +2,9 @@
 
 ## 0.1.0 (2026-10-21)
 
+> Not published. The release pipeline was stopped before publication and the draft was withdrawn
+> because the `release` skill was missing from the package; 0.1.1 is the first published version.
+
 
 ### Features
 
