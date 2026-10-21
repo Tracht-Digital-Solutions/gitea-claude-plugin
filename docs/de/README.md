@@ -1,6 +1,6 @@
 # Gitea für Claude Code
 
-Ein [Claude-Code](https://code.claude.com)-Plugin, das Claude mit **jeder Gitea-Instanz** verbindet – gitea.com oder einem eigenen, selbst gehosteten Server (auch in Docker). Es bringt einen gebündelten MCP-Server mit **126 Tools** und **7 Workflow-Skills** für Repositories, Dateien, Branches, Issues, Pull Requests und Reviews, Organisationen und Teams, Gitea Actions, Releases, Webhooks und Benachrichtigungen mit.
+Ein [Claude-Code](https://code.claude.com)-Plugin, das Claude mit **jeder Gitea-Instanz** verbindet – gitea.com oder einem eigenen, selbst gehosteten Server (auch in Docker). Es bringt einen gebündelten MCP-Server mit **137 Tools** und **7 Workflow-Skills** für Repositories, Dateien, Branches, Issues, Pull Requests und Reviews, Organisationen und Teams, Gitea Actions, Releases, Webhooks und Benachrichtigungen mit.
 
 > English documentation: [README.md](../../README.md)
 
@@ -12,6 +12,7 @@ Ein [Claude-Code](https://code.claude.com)-Plugin, das Claude mit **jeder Gitea-
 | **Dateien**        | lesen, Verzeichnisse und Bäume anzeigen, Dateien per Glob finden, Inhalte durchsuchen, anlegen/ändern/löschen, Commits mit mehreren Dateien, Datei zwischen Refs vergleichen                                    |
 | **Git**            | Branches, Commits mit Diffs, Historienanalyse, Refs vergleichen, Tags, Commit-Status, Branch- und Tag-Schutz, lokales Repository prüfen und pushen                                                              |
 | **Issues**         | nach Priorität, Labels, Zuständigkeit, Milestone filtern; repository-übergreifend suchen; anlegen, bearbeiten, zuweisen, labeln, kommentieren, schließen/öffnen; Backlog-Zusammenfassung; Labels und Milestones |
+| **Projekte**       | Kanban-Boards in Repositories, Organisationen und im eigenen Konto: anlegen (Vorlagen oder eigene Spalten), Board anzeigen, Issues hinzufügen/verschieben/entfernen, Spalten verwalten                          |
 | **Pull Requests**  | auflisten, erstellen, bearbeiten, Diff, Dateien, Commits, Reviews und Inline-Kommentare, Review-Anfragen, Prüfung der Merge-Voraussetzungen, Merge (mit Bestätigung), Branch aktualisieren, schließen           |
 | **Organisationen** | Benutzer, Organisationen, Mitglieder, Teams, Teammitglieder, Collaborators, Analyse der Zugriffsrechte                                                                                                          |
 | **Gitea Actions**  | Workflows und deren YAML, Runs, Jobs, Logs, Fehleranalyse, erneut ausführen, starten, abbrechen, Artefakte                                                                                                      |

@@ -24,6 +24,9 @@ Use `issue_list` with filters (`priority`, `labels`, `assigned_to`, `query`, `mi
 `issue_get` for issues whose content matters for the triage. For work across all repositories of
 the user, use `issue_search` (e.g. `assigned: true`).
 
+If the repository (or its organisation) uses project boards, `project_list` and `project_get`
+show which issues are in which column (e.g. backlog, in progress, done); include that status.
+
 ## 3. Triage proposal
 
 Propose, as a compact table, per issue: suggested priority, labels, assignee or milestone, and
@@ -33,5 +36,5 @@ exist (`label_list`); suggest new labels separately.
 ## 4. Apply (only with consent)
 
 Ask before changing anything. Then use `issue_labels`, `issue_assign`, `issue_update` (milestone,
-due date) and `issue_comment_create`. Close issues with `issue_set_state` only when the user agreed
+due date), `issue_comment_create`, and `project_issue_add` / `project_issue_move` for board columns. Close issues with `issue_set_state` only when the user agreed
 for each one, and leave a short comment explaining why. Summarise what was changed.
