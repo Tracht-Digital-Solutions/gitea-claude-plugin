@@ -5,3 +5,9 @@ node_modules/
 test/fixtures/gitea-swagger.v1.json
 CHANGELOG.md
 package-lock.json
+ci-tools/
+release/
+out-a/
+out-b/
+pkg/
+dl/

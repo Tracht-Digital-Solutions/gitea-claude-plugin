@@ -3,6 +3,11 @@ plugin/dist/
 dist/
 coverage/
 release/
+out-a/
+out-b/
+pkg/
+dl/
+ci-tools/node_modules/
 *.log
 .env
 .env.*

@@ -1,0 +1,15 @@
+{
+  "default": "work",
+  "profiles": {
+    "work": {
+      "url": "https://git.example.com",
+      "tokenEnv": "GITEA_WORK_TOKEN"
+    },
+    "home": {
+      "url": "https://gitea.home.lan",
+      "tokenFile": "~/.config/gitea/home.token",
+      "caFile": "~/.config/gitea/home-ca.pem",
+      "readOnly": true
+    }
+  }
+}
