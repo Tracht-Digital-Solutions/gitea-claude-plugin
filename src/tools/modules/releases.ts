@@ -46,6 +46,15 @@ const SECTION_TITLES: Record<string, string> = {
   other: 'Other changes',
 };
 
+/**
+ * Whether a tag names a pre-release: any SemVer pre-release suffix (`v1.2.0-rc.1`, `1.0.0-test.1`),
+ * or a common pre-release word in tags that are not SemVer.
+ */
+export function isPrereleaseTag(tag: string): boolean {
+  if (/^v?\d+(?:\.\d+){0,2}-[0-9A-Za-z][0-9A-Za-z.-]*(?:\+[0-9A-Za-z.-]+)?$/.test(tag)) return true;
+  return /(?:^|[-_.])(alpha|beta|rc|pre|preview|dev|snapshot|nightly)(?:$|[-_.\d])/i.test(tag);
+}
+
 /** Groups commits by Conventional Commit type into Markdown release notes. */
 export function buildReleaseNotes(
   commits: CompareCommit[],
@@ -272,7 +281,10 @@ export const releaseTools: ToolDefinition[] = [
       generate_notes: z.boolean().default(false),
       previous_tag: z.string().max(255).optional(),
       draft: z.boolean().default(false),
-      prerelease: z.boolean().optional().describe('Default: true for versions like v1.0.0-rc.1'),
+      prerelease: z
+        .boolean()
+        .optional()
+        .describe('Default: true for SemVer pre-release tags such as v1.0.0-rc.1 or v1.0.0-test.1'),
       tag_message: z.string().max(10_000).optional().describe('Annotation for a newly created tag'),
     },
     async run(args, ctx) {
@@ -284,7 +296,7 @@ export const releaseTools: ToolDefinition[] = [
         notes = notes ? `${notes}\n\n${g.notes}` : g.notes;
         generated = { previous_tag: g.previous_tag, commit_count: g.commit_count };
       }
-      const prerelease = args.prerelease ?? /-(alpha|beta|rc|pre|preview|dev)/i.test(args.tag);
+      const prerelease = args.prerelease ?? isPrereleaseTag(args.tag);
       const res = await ctx.client.request({
         method: 'POST',
         path: `${repoPath(owner, repo)}/releases`,
