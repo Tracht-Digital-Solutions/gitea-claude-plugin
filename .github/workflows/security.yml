@@ -44,11 +44,13 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: 'false'
-          GITLEAKS_ENABLE_COMMENTS: 'false'
+      - name: gitleaks over all commits of all branches
+        # The official image, pinned by digest (v8.30.1). Scanning the complete history on every
+        # run (not only the pushed range) also covers the initial commit.
+        run: |
+          docker run --rm -v "${GITHUB_WORKSPACE}:/repo" -w /repo \
+            ghcr.io/gitleaks/gitleaks@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f \
+            git /repo --log-opts="--all" --redact --verbose --exit-code 1
 
   dependencies:
     name: Dependency audit
