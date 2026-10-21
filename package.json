@@ -1,6 +1,6 @@
 {
   "name": "claude-code-gitea",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Gitea plugin for Claude Code: an MCP server that brings repositories, issues, pull requests, Actions and releases of any Gitea instance into Claude Code.",
   "license": "Apache-2.0",
