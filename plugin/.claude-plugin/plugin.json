@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "gitea",
   "displayName": "Gitea",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Work with any Gitea instance from Claude Code: repositories, files, branches, issues, pull requests, reviews, organisations, Gitea Actions, releases and webhooks via a bundled MCP server.",
   "author": {
     "name": "Julian Tracht",
@@ -11,7 +11,16 @@
   "homepage": "https://github.com/jtracht/claude-code-gitea#readme",
   "repository": "https://github.com/jtracht/claude-code-gitea",
   "license": "Apache-2.0",
-  "keywords": ["gitea", "forgejo", "git", "mcp", "issues", "pull-requests", "actions", "releases"],
+  "keywords": [
+    "gitea",
+    "forgejo",
+    "git",
+    "mcp",
+    "issues",
+    "pull-requests",
+    "actions",
+    "releases"
+  ],
   "icon": "./.claude-plugin/icon.png",
   "userConfig": {
     "gitea_url": {
