@@ -427,4 +427,57 @@ export const actionTools: ToolDefinition[] = [
       return { saved_to: target, bytes: res.data.length, name: meta.data.name };
     },
   }),
+  defineTool({
+    name: 'actions_runner_list',
+    module: M,
+    title: 'List Actions runners',
+    description:
+      'Lists the Actions runners available to a repository, an organisation (org) or your user account, with status, labels and whether they are busy. Use it to find out why a workflow run stays queued.',
+    access: 'read',
+    feature: 'actions_runners',
+    input: {
+      ...profileShape,
+      ...repoShape,
+      scope: z.enum(['repo', 'org', 'user']).default('repo'),
+      org: z
+        .string()
+        .regex(/^[A-Za-z0-9_.-]{1,100}$/)
+        .optional(),
+    },
+    async run(args, ctx) {
+      let path: string;
+      if (args.scope === 'user') path = '/user/actions/runners';
+      else if (args.scope === 'org') {
+        if (!args.org) throw new GiteaError('INVALID_INPUT', 'org is required for scope "org".');
+        path = `/orgs/${encodeURIComponent(args.org)}/actions/runners`;
+      } else {
+        const { owner, repo } = await ctx.repo(args);
+        path = `${repoPath(owner, repo)}/actions/runners`;
+      }
+      const runners = await ctx.client.list<Record<string, unknown>>(path, {}, 'runners');
+      return {
+        scope: args.scope,
+        total: runners.length,
+        online: runners.filter((r) => r.status === 'online' || r.status === 'idle' || r.status === 'active')
+          .length,
+        runners: runners.map((r) =>
+          compact({
+            id: r.id,
+            name: r.name,
+            status: r.status,
+            busy: r.busy,
+            disabled: r.disabled || undefined,
+            labels: Array.isArray(r.labels)
+              ? r.labels.map((l: unknown) =>
+                  typeof l === 'object' && l !== null ? (l as { name?: string }).name : l,
+                )
+              : undefined,
+          }),
+        ),
+        note: runners.length
+          ? undefined
+          : 'No runner is registered for this scope; workflow runs will stay queued. Instance-wide runners are not listed here.',
+      };
+    },
+  }),
 ];

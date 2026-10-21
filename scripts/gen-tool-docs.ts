@@ -10,10 +10,13 @@ const MODULE_TITLES: Record<string, string> = {
   git: 'Branches, commits, tags and protection',
   issues: 'Issues, labels and milestones',
   projects: 'Projects (kanban boards)',
+  time_tracking: 'Time tracking',
   pull_requests: 'Pull requests and reviews',
   organizations: 'Users, organisations, teams and access',
   actions: 'Gitea Actions',
   releases: 'Releases',
+  packages: 'Packages',
+  wiki: 'Wiki',
   extended: 'Webhooks, notifications and analysis',
 };
 
