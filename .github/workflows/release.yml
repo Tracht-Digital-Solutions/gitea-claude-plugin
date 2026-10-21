@@ -194,6 +194,20 @@ jobs:
           gh release edit "${TAG}" --repo "${REPO}" --draft=false --prerelease="${prerelease}" --latest="$([[ ${prerelease} == true ]] && echo false || echo true)"
           gh release view "${TAG}" --repo "${REPO}"
 
+  notify-marketplace:
+    name: Notify plugin marketplace
+    needs: [publish]
+    if: ${{ !cancelled() && needs.publish.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: Trigger marketplace rebuild
+        # DISPATCH_TOKEN: fine-grained PAT with contents read & write on the marketplace repository.
+        env:
+          GH_TOKEN: ${{ secrets.DISPATCH_TOKEN }}
+        run: gh api repos/jtracht/claude-plugin-marketplace/dispatches -f event_type=plugin-updated
+
   verify-install:
     name: Verify installation
     needs: [resolve, publish]
