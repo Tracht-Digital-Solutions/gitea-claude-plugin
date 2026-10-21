@@ -276,9 +276,9 @@ export const issueTools: ToolDefinition[] = [
       const issue = await ctx.client.request({ path: base });
       const out: Record<string, unknown> = slimIssue(issue.data, true);
       if (args.include_comments) {
-        const comments = await ctx.client.paginate(`${base}/comments`, {}, { limit: args.max_comments });
-        out.comment_list = comments.items.map(slimComment);
-        out.more_comments = comments.hasMore || undefined;
+        const comments = await ctx.client.list(`${base}/comments`);
+        out.comment_list = comments.slice(0, args.max_comments).map(slimComment);
+        out.more_comments = comments.length > args.max_comments || undefined;
       }
       return out;
     },
@@ -464,16 +464,20 @@ export const issueTools: ToolDefinition[] = [
       ...repoShape,
       number: indexSchema(),
       since: dateSchema.optional(),
-      ...pagingShape,
+      before: dateSchema.optional(),
+      limit: z.number().int().min(1).max(1000).default(100),
     },
     async run(args, ctx) {
       const { owner, repo } = await ctx.repo(args);
-      const res = await ctx.client.paginate(
-        `${repoPath(owner, repo)}/issues/${args.number}/comments`,
-        { since: args.since },
-        args,
-      );
-      return { has_more: res.hasMore, comments: res.items.map(slimComment) };
+      const comments = await ctx.client.list(`${repoPath(owner, repo)}/issues/${args.number}/comments`, {
+        since: args.since,
+        before: args.before,
+      });
+      return {
+        total: comments.length,
+        has_more: comments.length > args.limit,
+        comments: comments.slice(0, args.limit).map(slimComment),
+      };
     },
   }),
   defineTool({

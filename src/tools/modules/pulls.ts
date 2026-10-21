@@ -447,12 +447,8 @@ export const pullTools: ToolDefinition[] = [
         }
         out.push(item);
       }
-      const conversation = await ctx.client.paginate(
-        `${repoPath(owner, repo)}/issues/${args.number}/comments`,
-        {},
-        { limit: 100 },
-      );
-      return { reviews: out, conversation: conversation.items.map(slimComment) };
+      const conversation = await ctx.client.list(`${repoPath(owner, repo)}/issues/${args.number}/comments`);
+      return { reviews: out, conversation: conversation.slice(-100).map(slimComment) };
     },
   }),
   defineTool({

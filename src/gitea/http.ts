@@ -46,6 +46,8 @@ export interface HttpClientOptions {
   dispatcher?: Dispatcher;
   /** Injected for tests to avoid real waiting. */
   sleep?: (ms: number) => Promise<void>;
+  /** Observes every outgoing request (used by the API compatibility tests). */
+  onRequest?: (info: { method: HttpMethod; url: URL }) => void;
 }
 
 const RETRYABLE_STATUS = new Set([429, 502, 503, 504]);
@@ -236,6 +238,7 @@ export class GiteaHttpClient {
       let redirects = 0;
       try {
         for (;;) {
+          this.options.onRequest?.({ method, url });
           res = await fetch(url, {
             method,
             headers: this.headers(withAuth, accept, opts.body !== undefined && !opts.form),
@@ -394,6 +397,14 @@ export class GiteaHttpClient {
       }
       current++;
     }
+  }
+
+  /** Fetches an endpoint that returns its whole list at once (no page/limit parameters). */
+  async list<T>(path: string, query: Record<string, QueryValue> = {}, key?: string): Promise<T[]> {
+    const res = await this.request<T[] | Record<string, unknown>>({ path, query });
+    if (Array.isArray(res.data)) return res.data;
+    const wrapped = res.data[key ?? 'data'];
+    return Array.isArray(wrapped) ? (wrapped as T[]) : [];
   }
 }
 

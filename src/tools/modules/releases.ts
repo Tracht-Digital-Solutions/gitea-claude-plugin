@@ -142,7 +142,18 @@ async function generateNotes(
   includePrerelease: boolean,
 ) {
   const prev = previous ?? (await previousReleaseTag(ctx, owner, repo, tag, includePrerelease));
-  const head = target ?? tag;
+  // An existing tag is the head; for a tag that is about to be created, use its target branch.
+  const tagExists = await ctx.client
+    .request({ path: `${repoPath(owner, repo)}/tags/${encodeURIComponent(tag)}` })
+    .then(() => true)
+    .catch((err: unknown) => {
+      if (err instanceof GiteaError && err.code === 'NOT_FOUND') return false;
+      throw err;
+    });
+  const head =
+    (tagExists ? tag : target) ??
+    (await ctx.client.request<{ default_branch: string }>({ path: repoPath(owner, repo) })).data
+      .default_branch;
   const commits = await commitsBetween(ctx, owner, repo, prev, head);
   const compareUrl = prev
     ? new URL(`${owner}/${repo}/compare/${prev}...${tag}`, ctx.profile.baseUrl).href

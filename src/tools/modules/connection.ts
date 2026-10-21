@@ -5,12 +5,12 @@ import { profileShape } from '../common.js';
 import { defineTool, type ToolDefinition } from '../types.js';
 
 /** Read-only probes, one per token scope family. None of them has side effects. */
-const SCOPE_PROBES: { scope: string; path: string }[] = [
-  { scope: 'read:user', path: '/user' },
-  { scope: 'read:repository', path: '/user/repos' },
-  { scope: 'read:issue', path: '/repos/issues/search' },
-  { scope: 'read:organization', path: '/user/orgs' },
-  { scope: 'read:notification', path: '/notifications' },
+const SCOPE_PROBES: { scope: string; path: string; paged: boolean }[] = [
+  { scope: 'read:user', path: '/user', paged: false },
+  { scope: 'read:repository', path: '/user/repos', paged: true },
+  { scope: 'read:issue', path: '/repos/issues/search', paged: true },
+  { scope: 'read:organization', path: '/user/orgs', paged: true },
+  { scope: 'read:notification', path: '/notifications', paged: true },
 ];
 
 export const connectionTools: ToolDefinition[] = [
@@ -23,20 +23,23 @@ export const connectionTools: ToolDefinition[] = [
     access: 'read',
     input: { ...profileShape },
     async run(_args, ctx) {
-      const caps = await ctx.capabilities();
       let user: Record<string, unknown> | undefined;
       let authError: Record<string, unknown> | undefined;
       try {
         user = slimUser((await ctx.client.request({ path: '/user', retry: true })).data);
       } catch (err) {
-        if (!(err instanceof GiteaError)) throw err;
+        // Network and TLS problems are reported as the tool error (with their hint); an
+        // authentication problem is a diagnosis result.
+        if (!(err instanceof GiteaError) || !['UNAUTHORIZED', 'FORBIDDEN'].includes(err.code)) throw err;
         authError = err.toJSON();
       }
+      // Gitea rejects every request carrying an invalid token, including /version.
+      const caps = user ? await ctx.capabilities() : undefined;
       const scopes: Record<string, string> = {};
       if (user) {
         for (const probe of SCOPE_PROBES) {
           try {
-            await ctx.client.request({ path: probe.path, query: { limit: 1 } });
+            await ctx.client.request({ path: probe.path, query: probe.paged ? { limit: 1 } : {} });
             scopes[probe.scope] = 'granted';
           } catch (err) {
             if (err instanceof GiteaError && err.code === 'FORBIDDEN') scopes[probe.scope] = 'missing';
@@ -50,16 +53,16 @@ export const connectionTools: ToolDefinition[] = [
         ok: Boolean(user),
         profile: ctx.profile.name,
         server: ctx.profile.baseUrl.href,
-        gitea_version: caps.version,
-        forgejo: caps.forgejo || undefined,
+        gitea_version: caps?.version,
+        forgejo: caps?.forgejo || undefined,
         authenticated_as: user,
         authentication_error: authError,
         token_configured: Boolean(ctx.profile.token),
         read_scopes: user ? scopes : undefined,
         write_scopes_note:
           'Write scopes cannot be verified without side effects; a missing write scope is reported when a write tool runs.',
-        feature_detection: caps.detection,
-        features: caps.features,
+        feature_detection: caps?.detection,
+        features: caps?.features,
         enabled_operations: {
           read: true,
           write: permissions.write && !ctx.profile.readOnly,

@@ -14,7 +14,7 @@ const jobId = z.number().int().min(1).describe('Job id');
 const workflowId = z.string().min(1).max(255).describe('Workflow id or file name, e.g. "ci.yml"');
 
 const ERROR_LINE =
-  /(##\[error\]|\berror\b|\bfailed\b|\bfailure\b|\bfatal\b|\bexception\b|panic:|traceback|exit code [1-9]|✗|✘)/i;
+  /(##\[error\]|\bERR!|\berror\b|\bfailed\b|\bfailure\b|\bfatal\b|\bexception\b|panic:|traceback|exit code [1-9]|✗|✘)/i;
 
 /** Reduces a job log to the lines most useful for diagnosing a failure. */
 export function analyzeLog(log: string, tailLines: number) {
@@ -72,14 +72,14 @@ export const actionTools: ToolDefinition[] = [
     input: { ...profileShape, ...repoShape },
     async run(args, ctx) {
       const { owner, repo } = await ctx.repo(args);
-      const res = await ctx.client.paginate<Record<string, unknown>>(
+      const workflows = await ctx.client.list<Record<string, unknown>>(
         `${repoPath(owner, repo)}/actions/workflows`,
         {},
-        { limit: 200, key: 'workflows' },
+        'workflows',
       );
       return {
-        total: res.totalCount ?? res.items.length,
-        workflows: res.items.map((w) =>
+        total: workflows.length,
+        workflows: workflows.map((w) =>
           compact({ id: w.id, name: w.name, path: w.path, state: w.state, html_url: w.html_url }),
         ),
       };
@@ -354,21 +354,21 @@ export const actionTools: ToolDefinition[] = [
       ...repoShape,
       run_id: runId.optional(),
       name: z.string().max(255).optional(),
-      ...pagingShape,
+      limit: z.number().int().min(1).max(500).default(100),
     },
     async run(args, ctx) {
       const { owner, repo } = await ctx.repo(args);
       const path = args.run_id
         ? `${repoPath(owner, repo)}/actions/runs/${args.run_id}/artifacts`
         : `${repoPath(owner, repo)}/actions/artifacts`;
-      const res = await ctx.client.paginate<Record<string, unknown>>(
+      const artifacts = await ctx.client.list<Record<string, unknown>>(
         path,
         { name: args.name },
-        { limit: args.limit, page: args.page, key: 'artifacts' },
+        'artifacts',
       );
       return {
-        total: res.totalCount,
-        artifacts: res.items.map((a) =>
+        total: artifacts.length,
+        artifacts: artifacts.slice(0, args.limit).map((a) =>
           compact({
             id: a.id,
             name: a.name,
