@@ -95,6 +95,32 @@ describe.skipIf(!env)('Gitea integration', () => {
       expect(err.hint).toMatch(/scope/);
       await ro.close();
     });
+
+    it('needs write:user (not only write:repository) to create a repository', async () => {
+      // Documented in docs/CONFIGURATION.md: Gitea assigns POST /user/repos to the user scope.
+      const scoped = async (name: string, scopes: string[]) =>
+        (await api<{ sha1: string }>(e, 'POST', `/users/${owner}/tokens`, { name, scopes }, true)).sha1;
+      const repoOnly = await harness(e, {
+        token: await scoped(`wr-${run}`, ['write:repository', 'write:issue', 'read:user']),
+      });
+      const err = await repoOnly.fail('repo_create', { name: `wr-${run}` });
+      expect(err.code).toBe('FORBIDDEN');
+      expect(err.message).toContain('write:user');
+      await repoOnly.close();
+      const recommended = await harness(e, {
+        token: await scoped(`rec-${run}`, [
+          'write:repository',
+          'write:issue',
+          'write:user',
+          'read:organization',
+          'write:notification',
+        ]),
+      });
+      const created = await recommended.call('repo_create', { name: `rec-${run}` });
+      expect(created.repository.private).toBe(true);
+      await recommended.call('repo_delete', { owner, repo: `rec-${run}` });
+      await recommended.close();
+    });
   });
 
   describe('repositories and contents', () => {
