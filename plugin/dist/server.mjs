@@ -57404,7 +57404,7 @@ var actionTools = [
     name: "actions_runner_list",
     module: M2,
     title: "List Actions runners",
-    description: "Lists the Actions runners available to a repository, an organisation (org) or your user account, with status, labels and whether they are busy. Use it to find out why a workflow run stays queued.",
+    description: "Lists the Actions runners that can pick up jobs of a repository, an organisation (org) or your user account: runners registered at that level plus those inherited from the owner (user or organisation) and the whole instance (visible to admins), with status, labels and whether they are busy. Use it to find out why a workflow run stays queued.",
     access: "read",
     feature: "actions_runners",
     input: {
@@ -57414,33 +57414,73 @@ var actionTools = [
       org: string2().regex(/^[A-Za-z0-9_.-]{1,100}$/).optional()
     },
     async run(args, ctx) {
-      let path;
-      if (args.scope === "user") path = "/user/actions/runners";
-      else if (args.scope === "org") {
+      const levels = [];
+      if (args.scope === "user") {
+        levels.push({ level: "user", path: "/user/actions/runners" });
+      } else if (args.scope === "org") {
         if (!args.org) throw new GiteaError("INVALID_INPUT", 'org is required for scope "org".');
-        path = `/orgs/${encodeURIComponent(args.org)}/actions/runners`;
+        levels.push({ level: "organization", path: `/orgs/${encodeURIComponent(args.org)}/actions/runners` });
       } else {
         const { owner: owner2, repo } = await ctx.repo(args);
-        path = `${repoPath(owner2, repo)}/actions/runners`;
+        levels.push({ level: "repository", path: `${repoPath(owner2, repo)}/actions/runners` });
+        const me = await ctx.client.request({ path: "/user" }).then((r) => r.data.login).catch(() => void 0);
+        if (me?.toLowerCase() === owner2.toLowerCase()) {
+          levels.push({ level: "user", path: "/user/actions/runners" });
+        } else {
+          levels.push({ level: "organization", path: `/orgs/${encodeURIComponent(owner2)}/actions/runners` });
+        }
       }
-      const runners = await ctx.client.list(path, {}, "runners");
+      levels.push({ level: "instance", path: "/admin/actions/runners" });
+      const isOnline = (r) => r.status === "online" || r.status === "idle" || r.status === "active";
+      const slim = (r, level) => compact({
+        id: r.id,
+        name: r.name,
+        level,
+        status: r.status,
+        busy: r.busy,
+        disabled: r.disabled || void 0,
+        labels: Array.isArray(r.labels) ? r.labels.map(
+          (l) => typeof l === "object" && l !== null ? l.name : l
+        ) : void 0
+      });
+      const seen = /* @__PURE__ */ new Set();
+      const runners = [];
+      const unavailable = [];
+      for (const [i, l] of levels.entries()) {
+        let list;
+        try {
+          list = await ctx.client.list(l.path, {}, "runners");
+        } catch (err) {
+          if (i === 0) throw err;
+          if (err instanceof GiteaError && ["FORBIDDEN", "NOT_FOUND", "UNAUTHORIZED"].includes(err.code)) {
+            unavailable.push(l.level);
+            continue;
+          }
+          throw err;
+        }
+        for (const r of list) {
+          if (seen.has(r.id)) continue;
+          seen.add(r.id);
+          runners.push(slim(r, l.level));
+        }
+      }
+      const online = runners.filter((r) => isOnline(r) && !r.disabled).length;
+      let note;
+      if (runners.length === 0) {
+        note = `No runner is available to this ${levels[0].level}; workflow runs will stay queued until one is registered.`;
+      } else if (online === 0) {
+        note = "Runners exist but none is online and enabled; workflow runs will stay queued.";
+      }
+      if (unavailable.length) {
+        const hidden = `Runners of the ${unavailable.join(" and ")} level could not be listed with this token (they may still run jobs).`;
+        note = note ? `${note} ${hidden}` : hidden;
+      }
       return {
         scope: args.scope,
         total: runners.length,
-        online: runners.filter((r) => r.status === "online" || r.status === "idle" || r.status === "active").length,
-        runners: runners.map(
-          (r) => compact({
-            id: r.id,
-            name: r.name,
-            status: r.status,
-            busy: r.busy,
-            disabled: r.disabled || void 0,
-            labels: Array.isArray(r.labels) ? r.labels.map(
-              (l) => typeof l === "object" && l !== null ? l.name : l
-            ) : void 0
-          })
-        ),
-        note: runners.length ? void 0 : "No runner is registered for this scope; workflow runs will stay queued. Instance-wide runners are not listed here."
+        online,
+        runners,
+        note
       };
     }
   })
@@ -59853,6 +59893,7 @@ var scopeShape = {
   org: ownerSchema.optional().describe('Organisation for scope "org".')
 };
 var projectId = number2().int().min(1).describe("Project id (see project_list)");
+var columnPosition = number2().int().min(1).max(100).describe("Position from the left, 1-based");
 var columnRef = union([string2().min(1).max(255), number2().int().min(1)]).describe("Column title or id");
 async function projectsBase(ctx, args) {
   if (args.scope === "user") return "/user/projects";
@@ -59882,6 +59923,26 @@ var slimColumn = (c) => compact({ id: c.id, title: c.title, color: c.color, defa
 async function columns(ctx, base, id) {
   const res = await ctx.client.paginate(`${base}/${id}/columns`, {}, { limit: 200 });
   return res.items.sort((a, b) => (a.sorting ?? 0) - (b.sorting ?? 0));
+}
+function reorder(ids, columnId, position) {
+  const rest = ids.filter((c) => c !== columnId);
+  const index = Math.min(Math.max(position, 1), rest.length + 1) - 1;
+  return [...rest.slice(0, index), columnId, ...rest.slice(index)];
+}
+async function moveColumn(ctx, base, id, columnId, position) {
+  const current = await columns(ctx, base, id);
+  const order = reorder(
+    current.map((c) => c.id),
+    columnId,
+    position
+  );
+  await ctx.client.request({
+    method: "POST",
+    path: `${base}/${id}/columns/move`,
+    body: { column_ids: order }
+  });
+  const after = await columns(ctx, base, id);
+  return after.map((c) => c.title);
 }
 async function resolveColumn(ctx, base, id, ref) {
   const all = await columns(ctx, base, id);
@@ -60065,7 +60126,7 @@ var projectTools = [
     name: "project_column_create",
     module: M8,
     title: "Add project column",
-    description: "Adds a column to a project board, optionally with a colour.",
+    description: "Adds a column to a project board, optionally with a colour and at a position (1 = leftmost; default: rightmost).",
     access: "write",
     feature: "projects",
     input: {
@@ -60074,7 +60135,8 @@ var projectTools = [
       ...scopeShape,
       id: projectId,
       title: string2().min(1).max(255),
-      color: colorSchema.optional()
+      color: colorSchema.optional(),
+      position: columnPosition.optional()
     },
     async run(args, ctx) {
       const base = await projectsBase(ctx, args);
@@ -60083,7 +60145,31 @@ var projectTools = [
         path: `${base}/${args.id}/columns`,
         body: body({ title: args.title, color: args.color })
       });
-      return { created: true, column: slimColumn(res.data) };
+      const all = await columns(ctx, base, args.id);
+      const order = await moveColumn(ctx, base, args.id, res.data.id, args.position ?? all.length);
+      return { created: true, column: slimColumn(res.data), order };
+    }
+  }),
+  defineTool({
+    name: "project_column_move",
+    module: M8,
+    title: "Move project column",
+    description: 'Moves a column of a project board to another position (1 = leftmost), e.g. to put "Review" before "Done".',
+    access: "write",
+    feature: "projects",
+    input: {
+      ...profileShape,
+      ...repoShape,
+      ...scopeShape,
+      id: projectId,
+      column: columnRef,
+      position: columnPosition
+    },
+    async run(args, ctx) {
+      const base = await projectsBase(ctx, args);
+      const col = await resolveColumn(ctx, base, args.id, args.column);
+      const order = await moveColumn(ctx, base, args.id, col.id, args.position);
+      return { moved: col.title, order };
     }
   }),
   defineTool({
