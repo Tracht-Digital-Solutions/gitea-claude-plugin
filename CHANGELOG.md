@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.2](https://github.com/jtracht/gitea-claude-plugin/compare/v0.5.1...v0.5.2) (2026-10-21)
+
+
+### Miscellaneous
+
+* release 0.5.2 ([#25](https://github.com/jtracht/gitea-claude-plugin/issues/25)) ([fbe58ed](https://github.com/jtracht/gitea-claude-plugin/commit/fbe58ed15c1f11c15eecc4b994fb81fa695d1dbb))
+
 ## [0.5.1](https://github.com/jtracht/claude-code-gitea/compare/v0.5.0...v0.5.1) (2026-10-21)
 
 
