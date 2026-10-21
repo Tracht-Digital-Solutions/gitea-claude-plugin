@@ -3,30 +3,22 @@ import * as z from 'zod/v4';
 import { GiteaError } from '../../gitea/errors.js';
 import { compact } from '../../gitea/models.js';
 import { filePath } from '../../security/url.js';
-import { body, profileShape, refSchema, repoPath, repoShape, truncateText } from '../common.js';
-import { defineTool, type ToolContext, type ToolDefinition } from '../types.js';
+import { body, profileShape, refSchema, repoShape, truncateText } from '../common.js';
+import { mapLimit } from '../../util/concurrency.js';
+import { globToRegExp, isGlob } from '../../util/glob.js';
+import {
+  defaultBranch,
+  fileSha,
+  getContent,
+  isBinary,
+  listTree,
+  readTextFile,
+  type ContentEntry,
+} from '../shared/repo-files.js';
+import { defineTool, type ToolDefinition } from '../types.js';
 
+/** Repository files: read, list, search, compare, and create/update/delete single or multiple files. */
 const M = 'repositories';
-
-interface ContentEntry {
-  type: string;
-  name: string;
-  path: string;
-  sha: string;
-  size: number;
-  content?: string | null;
-  encoding?: string | null;
-  target?: string | null;
-  last_commit_sha?: string;
-  html_url?: string;
-}
-
-interface TreeEntry {
-  path: string;
-  type: 'blob' | 'tree' | 'commit';
-  size?: number;
-  sha: string;
-}
 
 const pathSchema = z.string().min(1).max(4096).describe('File path inside the repository, e.g. src/index.ts');
 const commitShape = {
@@ -53,110 +45,6 @@ function commitBody(args: {
   return body({ branch: args.branch, new_branch: args.new_branch, message: args.message, author });
 }
 
-function isBinary(buf: Buffer): boolean {
-  const sample = buf.subarray(0, 8000);
-  return sample.includes(0);
-}
-
-export async function getContent(
-  ctx: ToolContext,
-  owner: string,
-  repo: string,
-  path: string,
-  ref?: string,
-): Promise<ContentEntry | ContentEntry[]> {
-  const res = await ctx.client.request<ContentEntry | ContentEntry[]>({
-    path: `${repoPath(owner, repo)}/contents/${filePath(path)}`,
-    query: { ref },
-  });
-  return res.data;
-}
-
-/** Reads a text file; returns undefined if it does not exist at that ref. */
-export async function readTextFile(
-  ctx: ToolContext,
-  owner: string,
-  repo: string,
-  path: string,
-  ref?: string,
-): Promise<string | undefined> {
-  try {
-    const res = await ctx.client.request<Buffer>({
-      path: `${repoPath(owner, repo)}/raw/${filePath(path)}`,
-      query: { ref },
-      responseType: 'binary',
-      maxBytes: 2 * 1024 * 1024,
-    });
-    if (isBinary(res.data)) throw new GiteaError('INVALID_INPUT', `${path} is a binary file.`);
-    return res.data.toString('utf8');
-  } catch (err) {
-    if (err instanceof GiteaError && err.code === 'NOT_FOUND') return undefined;
-    throw err;
-  }
-}
-
-async function currentSha(ctx: ToolContext, owner: string, repo: string, path: string, ref?: string) {
-  const entry = await getContent(ctx, owner, repo, path, ref);
-  if (Array.isArray(entry) || entry.type !== 'file') {
-    throw new GiteaError('INVALID_INPUT', `${path} is not a regular file.`);
-  }
-  return entry.sha;
-}
-
-async function listTree(ctx: ToolContext, owner: string, repo: string, ref: string, maxEntries: number) {
-  const entries: TreeEntry[] = [];
-  let truncated = false;
-  for (let page = 1; entries.length < maxEntries; page++) {
-    const res = await ctx.client.request<{ tree?: TreeEntry[]; truncated?: boolean; total_count?: number }>({
-      path: `${repoPath(owner, repo)}/git/trees/${encodeURIComponent(ref)}`,
-      query: { recursive: true, page, per_page: 1000 },
-    });
-    const tree = res.data.tree ?? [];
-    entries.push(...tree);
-    if (!res.data.truncated || tree.length === 0) break;
-    truncated = true;
-    if (res.data.total_count !== undefined && entries.length >= res.data.total_count) {
-      truncated = false;
-      break;
-    }
-  }
-  return { entries: entries.slice(0, maxEntries), truncated: truncated || entries.length > maxEntries };
-}
-
-async function defaultBranch(ctx: ToolContext, owner: string, repo: string): Promise<string> {
-  const res = await ctx.client.request<{ default_branch: string }>({ path: repoPath(owner, repo) });
-  return res.data.default_branch;
-}
-
-function globToRegExp(glob: string): RegExp {
-  let re = '';
-  for (let i = 0; i < glob.length; i++) {
-    const c = glob[i]!;
-    if (c === '*') {
-      if (glob[i + 1] === '*') {
-        re += '.*';
-        i++;
-        if (glob[i + 1] === '/') i++;
-      } else re += '[^/]*';
-    } else if (c === '?') re += '[^/]';
-    else re += c.replace(/[.+^${}()|[\]\\]/g, '\\$&');
-  }
-  return new RegExp(`^${re}$`, 'i');
-}
-
-async function mapLimit<T, R>(items: T[], concurrency: number, fn: (item: T) => Promise<R>): Promise<R[]> {
-  const results: R[] = new Array<R>(items.length);
-  let next = 0;
-  const workers = Array.from({ length: Math.min(concurrency, items.length) }, async () => {
-    while (next < items.length) {
-      const i = next++;
-      results[i] = await fn(items[i]!);
-    }
-  });
-  await Promise.all(workers);
-  return results;
-}
-
 export const contentTools: ToolDefinition[] = [
   defineTool({
     name: 'file_get',
@@ -173,8 +61,8 @@ export const contentTools: ToolDefinition[] = [
       max_chars: z.number().int().min(100).max(500_000).default(100_000),
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const entry = await getContent(ctx, owner, repo, args.path, args.ref);
+      const repo = await ctx.repo(args);
+      const entry = await getContent(ctx, repo, args.path, args.ref);
       if (Array.isArray(entry)) {
         return {
           type: 'dir',
@@ -187,7 +75,7 @@ export const contentTools: ToolDefinition[] = [
       }
       const raw = entry.content ? Buffer.from(entry.content, 'base64') : undefined;
       if (raw === undefined) {
-        const text = await readTextFile(ctx, owner, repo, args.path, args.ref);
+        const text = await readTextFile(ctx, repo, args.path, args.ref);
         const t = truncateText(text ?? '', args.max_chars);
         return {
           path: entry.path,
@@ -224,10 +112,10 @@ export const contentTools: ToolDefinition[] = [
       ref: refSchema.optional(),
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       const p = args.path.replace(/^\/+|\/+$/g, '');
       const res = await ctx.client.request<ContentEntry[] | ContentEntry>({
-        path: p ? `${repoPath(owner, repo)}/contents/${filePath(p)}` : `${repoPath(owner, repo)}/contents`,
+        path: p ? `${repo.api}/contents/${filePath(p)}` : `${repo.api}/contents`,
         query: { ref: args.ref },
       });
       if (!Array.isArray(res.data))
@@ -255,9 +143,9 @@ export const contentTools: ToolDefinition[] = [
       max_entries: z.number().int().min(1).max(20_000).default(2_000),
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const ref = args.ref ?? (await defaultBranch(ctx, owner, repo));
-      const { entries, truncated } = await listTree(ctx, owner, repo, ref, args.max_entries);
+      const repo = await ctx.repo(args);
+      const ref = args.ref ?? (await defaultBranch(ctx, repo));
+      const { entries, truncated } = await listTree(ctx, repo, ref, args.max_entries);
       const prefix = args.path_prefix?.replace(/^\/+/, '');
       const filtered = prefix ? entries.filter((e) => e.path.startsWith(prefix)) : entries;
       return {
@@ -283,11 +171,10 @@ export const contentTools: ToolDefinition[] = [
       limit: z.number().int().min(1).max(5000).default(200),
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const ref = args.ref ?? (await defaultBranch(ctx, owner, repo));
-      const { entries, truncated } = await listTree(ctx, owner, repo, ref, 50_000);
-      const isGlob = /[*?]/.test(args.pattern);
-      const re = isGlob ? globToRegExp(args.pattern) : undefined;
+      const repo = await ctx.repo(args);
+      const ref = args.ref ?? (await defaultBranch(ctx, repo));
+      const { entries, truncated } = await listTree(ctx, repo, ref, 50_000);
+      const re = isGlob(args.pattern) ? globToRegExp(args.pattern, { caseInsensitive: true }) : undefined;
       const needle = args.pattern.toLowerCase();
       const matches = entries
         .filter((e) => e.type === 'blob')
@@ -319,8 +206,8 @@ export const contentTools: ToolDefinition[] = [
       max_matches: z.number().int().min(1).max(1000).default(100),
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const ref = args.ref ?? (await defaultBranch(ctx, owner, repo));
+      const repo = await ctx.repo(args);
+      const ref = args.ref ?? (await defaultBranch(ctx, repo));
       let matcher: RegExp;
       try {
         const source = args.regex ? args.query : args.query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -328,8 +215,8 @@ export const contentTools: ToolDefinition[] = [
       } catch (err) {
         throw new GiteaError('INVALID_INPUT', `Invalid regular expression: ${(err as Error).message}`);
       }
-      const { entries } = await listTree(ctx, owner, repo, ref, 50_000);
-      const glob = args.path_glob ? globToRegExp(args.path_glob) : undefined;
+      const { entries } = await listTree(ctx, repo, ref, 50_000);
+      const glob = args.path_glob ? globToRegExp(args.path_glob, { caseInsensitive: true }) : undefined;
       const candidates = entries.filter(
         (e) => e.type === 'blob' && (e.size ?? 0) <= 512 * 1024 && (!glob || glob.test(e.path)),
       );
@@ -339,7 +226,7 @@ export const contentTools: ToolDefinition[] = [
         if (matches.length >= args.max_matches) return;
         let text: string | undefined;
         try {
-          text = await readTextFile(ctx, owner, repo, entry.path, ref);
+          text = await readTextFile(ctx, repo, entry.path, ref);
         } catch {
           return; // binary or unreadable
         }
@@ -378,13 +265,13 @@ export const contentTools: ToolDefinition[] = [
       ...commitShape,
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       const res = await ctx.client.request<{
         commit?: { sha?: string; html_url?: string };
         content?: { sha?: string };
       }>({
         method: 'POST',
-        path: `${repoPath(owner, repo)}/contents/${filePath(args.path)}`,
+        path: `${repo.api}/contents/${filePath(args.path)}`,
         body: {
           ...commitBody(args),
           message: args.message ?? `Create ${args.path}`,
@@ -420,15 +307,15 @@ export const contentTools: ToolDefinition[] = [
       ...commitShape,
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       const sourcePath = args.from_path ?? args.path;
-      const sha = args.sha ?? (await currentSha(ctx, owner, repo, sourcePath, args.branch));
+      const sha = args.sha ?? (await fileSha(ctx, repo, sourcePath, args.branch));
       const res = await ctx.client.request<{
         commit?: { sha?: string; html_url?: string };
         content?: { sha?: string };
       }>({
         method: 'PUT',
-        path: `${repoPath(owner, repo)}/contents/${filePath(args.path)}`,
+        path: `${repo.api}/contents/${filePath(args.path)}`,
         body: body({
           ...commitBody(args),
           message: args.message ?? `Update ${args.path}`,
@@ -462,18 +349,18 @@ export const contentTools: ToolDefinition[] = [
       ...commitShape,
     },
     async confirm(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       return {
-        target: `${owner}/${repo}:${args.path}`,
-        action: `Delete file ${args.path} from ${owner}/${repo}${args.branch ? ` on branch ${args.branch}` : ''} (a commit is created; history keeps the old version).`,
+        target: `${repo.fullName}:${args.path}`,
+        action: `Delete file ${args.path} from ${repo.fullName}${args.branch ? ` on branch ${args.branch}` : ''} (a commit is created; history keeps the old version).`,
       };
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const sha = args.sha ?? (await currentSha(ctx, owner, repo, args.path, args.branch));
+      const repo = await ctx.repo(args);
+      const sha = args.sha ?? (await fileSha(ctx, repo, args.path, args.branch));
       const res = await ctx.client.request<{ commit?: { sha?: string } }>({
         method: 'DELETE',
-        path: `${repoPath(owner, repo)}/contents/${filePath(args.path)}`,
+        path: `${repo.api}/contents/${filePath(args.path)}`,
         body: { ...commitBody(args), message: args.message ?? `Delete ${args.path}`, sha },
       });
       return { deleted: args.path, commit: res.data.commit?.sha };
@@ -509,7 +396,7 @@ export const contentTools: ToolDefinition[] = [
       message: z.string().min(1).max(10_000).describe('Commit message.'),
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       if (
         args.files.some((f) => f.operation === 'delete') &&
         !(ctx.config.permissions.destructive && !ctx.profile.readOnly)
@@ -533,7 +420,7 @@ export const contentTools: ToolDefinition[] = [
         }
         const sha =
           f.operation === 'update' || f.operation === 'delete' || f.operation === 'rename'
-            ? await currentSha(ctx, owner, repo, f.from_path ?? f.path, args.branch)
+            ? await fileSha(ctx, repo, f.from_path ?? f.path, args.branch)
             : undefined;
         files.push(
           body({
@@ -547,7 +434,7 @@ export const contentTools: ToolDefinition[] = [
       }
       const res = await ctx.client.request<{ commit?: { sha?: string; html_url?: string } }>({
         method: 'POST',
-        path: `${repoPath(owner, repo)}/contents`,
+        path: `${repo.api}/contents`,
         body: { ...commitBody(args), message: args.message, files },
       });
       return {
@@ -573,11 +460,11 @@ export const contentTools: ToolDefinition[] = [
       context_lines: z.number().int().min(0).max(20).default(3),
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       const headPath = args.head_path ?? args.path;
       const [a, b] = await Promise.all([
-        readTextFile(ctx, owner, repo, args.path, args.base),
-        readTextFile(ctx, owner, repo, headPath, args.head),
+        readTextFile(ctx, repo, args.path, args.base),
+        readTextFile(ctx, repo, headPath, args.head),
       ]);
       if (a === undefined && b === undefined) {
         throw new GiteaError('NOT_FOUND', `${args.path} exists in neither ${args.base} nor ${args.head}.`);

@@ -1,12 +1,14 @@
-import { open } from 'node:fs/promises';
-import { basename, isAbsolute, relative, resolve } from 'node:path';
 import * as z from 'zod/v4';
 import { GiteaError } from '../../gitea/errors.js';
 import { compact } from '../../gitea/models.js';
-import { nameSchema, ownerSchema, pagingShape, profileShape } from '../common.js';
+import { readWorkdirFile } from '../../security/workdir.js';
+import { listResult, nameSchema, ownerSchema, pagingShape, profileShape } from '../common.js';
 import { defineTool, type ToolDefinition } from '../types.js';
 
+/** Package registry: list, inspect, link and delete packages; upload generic packages. */
 const M = 'packages';
+/** Largest file uploaded to a generic package. */
+const MAX_PACKAGE_FILE_BYTES = 500 * 1024 * 1024;
 
 const PACKAGE_TYPES = [
   'alpine',
@@ -86,7 +88,7 @@ export const packageTools: ToolDefinition[] = [
         { type: args.type, q: args.query },
         args,
       );
-      return { has_more: res.hasMore, packages: res.items.map(slimPackage) };
+      return listResult(res, 'packages', slimPackage);
     },
   }),
   defineTool({
@@ -146,27 +148,8 @@ export const packageTools: ToolDefinition[] = [
         .describe('File name in the package (default: local file name)'),
     },
     async run(args, ctx) {
-      const full = isAbsolute(args.file) ? resolve(args.file) : resolve(ctx.cwd, args.file);
-      const rel = relative(resolve(ctx.cwd), full);
-      if (rel.startsWith('..') || isAbsolute(rel)) {
-        throw new GiteaError(
-          'INVALID_INPUT',
-          `Only files inside the working directory (${ctx.cwd}) can be uploaded.`,
-        );
-      }
-      // Check and read through one handle so the file cannot change between check and read.
-      const handle = await open(full, 'r').catch(() => undefined);
-      if (!handle) throw new GiteaError('INVALID_INPUT', `${args.file} is not a readable file.`);
-      let data: Buffer;
-      try {
-        const st = await handle.stat();
-        if (!st.isFile()) throw new GiteaError('INVALID_INPUT', `${args.file} is not a file.`);
-        if (st.size > 500 * 1024 * 1024) throw new GiteaError('INVALID_INPUT', 'File is larger than 500 MB.');
-        data = await handle.readFile();
-      } finally {
-        await handle.close();
-      }
-      const fileName = args.file_name ?? basename(full);
+      const { name: localName, data } = await readWorkdirFile(ctx.cwd, args.file, MAX_PACKAGE_FILE_BYTES);
+      const fileName = args.file_name ?? localName;
       if (!GENERIC_NAME.test(fileName)) {
         throw new GiteaError(
           'INVALID_INPUT',

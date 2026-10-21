@@ -45,7 +45,9 @@ claude --plugin-dir ./plugin
    permissions.
 2. Use only endpoints that exist in the Gitea OpenAPI document; add the endpoint to
    `FEATURE_ENDPOINTS` if older versions may lack it.
-3. Return compact projections (`src/gitea/models.ts`), not raw API objects.
+3. Return compact projections (`src/gitea/models.ts`), not raw API objects, and follow the module
+   conventions in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#source-layout) (`ctx.repo`,
+   `listResult`, `ifFound`, shared helpers in `src/tools/shared/` and `src/util/`).
 4. Add unit tests for non-trivial logic and cover the tool in `test/integration/gitea.test.ts` (the
    suite fails for tools that were not exercised).
 5. Run `npm run docs:tools` to regenerate `docs/TOOLS.md`.

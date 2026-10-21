@@ -12,14 +12,16 @@
                 │ MCP over stdio (JSON-RPC)
 ┌───────────────▼──────────────── MCP server (src/) ───────────────────┐
 │ index.ts        process entry, Node version check, stdio transport   │
-│ server.ts       tool registration, permission gate, feature gate,    │
-│                 confirmation (elicitation / token), result formatting │
-│ tools/          registry + 14 modules (repos, contents, git, issues, projects, time, │
-│                 pulls, orgs, actions, releases, packages, wiki, extended, connection) │
+│ server.ts       tool registration and the call pipeline              │
+│ runtime/        profiles, clients, capabilities · request context ·  │
+│                 confirmation (elicitation / token) · result format   │
+│ tools/          registry, shared input schemas, shared helpers and   │
+│                 14 modules (one per Gitea area)                      │
 │ gitea/          http client · errors · capabilities · models         │
 │ config/         plugin options, env, profiles file, access levels    │
-│ security/       redaction · URL/path validation                       │
-│ git/            local git via execFile (no shell)                     │
+│ security/       redaction · URL/path validation · workdir confinement│
+│ git/            local git via execFile (no shell)                    │
+│ util/           logging · version · glob · bounded concurrency       │
 └───────────────┬──────────────────────────────────────────────────────┘
                 │ HTTPS (undici), token header, custom CA
           ┌─────▼─────┐
@@ -31,7 +33,9 @@
 
 1. Claude Code sends `tools/call`. The MCP SDK validates the arguments against the tool's zod
    schema — invalid input never reaches a handler.
-2. `server.ts` resolves the **profile** (argument `profile` or the default).
+2. `server.ts` creates a `RequestContext` (`runtime/context.ts`) for the **profile** (argument
+   `profile` or the default). It gives the tool the HTTP client, the capabilities and `repo(args)`,
+   which resolves `owner`/`repo` (or the git remote of the working directory) to a `RepoRef`.
 3. **Permission gate**: the tool's access level (`read`, `write`, `destructive`, `admin`) is checked
    against the plugin options and the profile's `readOnly` flag. Disabled levels are not even
    registered; the runtime check also covers read-only profiles.
@@ -39,13 +43,55 @@
    instance's capabilities, detected once per profile from `/api/v1/version` and the instance's own
    OpenAPI document. A missing endpoint yields `UNSUPPORTED` instead of a confusing 404.
 5. **Confirmation**: consequential tools declare a `confirm()` that returns the exact target and a
-   description of the consequence. If the client supports MCP elicitation the user confirms in the
+   description of the consequence (`runtime/confirmation.ts`). If the client supports MCP elicitation the user confirms in the
    Claude Code UI; otherwise the call must carry `confirm: "<target>"`, which the model may only send
    after the user agreed (the server instructions and error hint say so). Without confirmation
    nothing is sent to Gitea.
 6. The handler runs, using the HTTP client and returning a compact projection of Gitea's objects
    (`gitea/models.ts`) to keep context usage low.
-7. Results and errors are serialised as JSON, **redacted**, and truncated at 150 000 characters.
+7. Results and errors are serialised as JSON, **redacted**, and truncated at 150 000 characters
+   (`runtime/results.ts`).
+
+## Source layout
+
+```text
+src/
+  index.ts                 process entry: Node version check, configuration, stdio transport
+  server.ts                GiteaMcpServer: registers tools, runs the call pipeline
+  runtime/
+    runtime.ts             per-process state: profiles, HTTP clients, cached capabilities
+    context.ts             RequestContext: what a tool sees during one call (ToolContext)
+    confirmation.ts        informed confirmation via elicitation or confirm token
+    results.ts             JSON results, redaction, truncation, error results
+  config/config.ts         plugin options, environment, profiles file, access levels
+  gitea/
+    http.ts                HTTP client (TLS, redirects, retries, pagination, size limits)
+    errors.ts              GiteaError, error codes, isGiteaError, ifFound
+    capabilities.ts        version and feature detection
+    models.ts              compact projections of Gitea objects
+  security/
+    redact.ts              secret redaction
+    url.ts                 base URL, API path and file path validation
+    workdir.ts             confinement of local file access to the working directory
+  git/local.ts             local git commands via execFile
+  tools/
+    types.ts               ToolDefinition, ToolContext, RepoRef, defineTool
+    common.ts              shared input schemas (profile, owner/repo, paging) and result helpers
+    registry.ts            all modules, filtered by the enabled access levels
+    shared/repo-files.ts   file, content and tree access shared by several modules
+    modules/*.ts           the tools, one module per Gitea area
+  util/                    logging, version, glob matching, bounded concurrency
+```
+
+Conventions for tool modules:
+
+- A tool resolves its repository once with `const repo = await ctx.repo(args)` and builds paths
+  from `repo.api` (`/repos/{owner}/{repo}`); helpers take the `RepoRef`, not separate strings.
+- List tools return `listResult(page, key, slim)`: `{ total?, has_more, <key>: [...] }`.
+- "Does not exist" as a normal answer is expressed with `ifFound(request)`, not with try/catch.
+- Local files are read with `readWorkdirFile` and written to `resolveInWorkdir(..., 'write')` paths.
+- Logic that more than one module needs lives in `tools/shared/` or `util/`, never in another
+  tool module.
 
 ## HTTP client (`gitea/http.ts`)
 
@@ -152,7 +198,7 @@ plugin/                           the plugin as installed
   .mcp.json                       MCP server definition
   skills/*/SKILL.md               workflow skills
   dist/server.mjs                 built bundle (only on stable / in release zips)
-src/                              MCP server sources (TypeScript, strict)
+src/                              MCP server sources (TypeScript, strict), see below
 test/                             unit, mcp, integration tests and the OpenAPI fixture
 scripts/                          build, package, validate, smoke test, test environment, docs
 docs/                             documentation (English, docs/de German)

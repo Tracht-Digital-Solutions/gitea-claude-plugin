@@ -4,6 +4,7 @@ import { registerSecret } from '../../security/redact.js';
 import {
   body,
   dateSchema,
+  listResult,
   ownerSchema,
   pagingShape,
   profileShape,
@@ -11,9 +12,10 @@ import {
   repoShape,
   requireSomeFields,
 } from '../common.js';
-import { defineTool, type ToolDefinition } from '../types.js';
-import { readTextFile } from './contents.js';
+import { defineTool, type ToolContext, type ToolDefinition } from '../types.js';
+import { readTextFile } from '../shared/repo-files.js';
 
+/** Webhooks, notifications, local git helpers and the repository health analysis. */
 const M = 'extended';
 
 const HOOK_EVENTS = [
@@ -49,9 +51,62 @@ const hookScope = {
   org: ownerSchema.optional().describe('Manage organisation webhooks instead of repository webhooks.'),
 };
 
-function hookBase(args: { org?: string | undefined }, owner?: string, repo?: string): string {
+/** API path of the webhooks of the organisation (`org`) or of the repository. */
+async function hooksPath(
+  ctx: ToolContext,
+  args: { org?: string | undefined; owner?: string | undefined; repo?: string | undefined },
+): Promise<string> {
   if (args.org) return `/orgs/${encodeURIComponent(args.org)}/hooks`;
-  return `${repoPath(owner!, repo!)}/hooks`;
+  return `${(await ctx.repo(args)).api}/hooks`;
+}
+
+/** Which community and configuration files exist in the repository root (lower-cased names). */
+function communityFiles(names: Set<string>) {
+  const has = (re: RegExp) => [...names].some((n) => re.test(n));
+  return {
+    readme: has(/^readme(\.|$)/),
+    license: has(/^(license|licence|copying)(\.|$)/),
+    contributing: has(/^contributing(\.|$)/),
+    security: has(/^security(\.|$)/),
+    changelog: has(/^changelog(\.|$)/),
+    gitignore: names.has('.gitignore'),
+    ci_config: ['.gitea', '.github', '.forgejo'].some((d) => names.has(d)),
+  };
+}
+
+/** Facts collected by repo_analyze that the suggestions are derived from. */
+interface HealthFacts {
+  files: ReturnType<typeof communityFiles>;
+  isPrivate: boolean;
+  hasDescription: boolean;
+  hasTopics: boolean;
+  branch: string;
+  isProtected: boolean;
+  failedRuns: number;
+  recentRuns: number;
+  daysSince: number | undefined;
+}
+
+/** Improvement suggestions for a repository. */
+function healthSuggestions(f: HealthFacts): string[] {
+  const suggestions: string[] = [];
+  if (!f.files.readme) suggestions.push('Add a README describing purpose, setup and usage.');
+  if (!f.files.license) suggestions.push('Add a LICENSE file so others know how they may use the code.');
+  if (!f.files.contributing && !f.isPrivate) suggestions.push('Add CONTRIBUTING guidelines.');
+  if (!f.files.security && !f.isPrivate)
+    suggestions.push('Add a SECURITY policy describing how to report vulnerabilities.');
+  if (!f.isProtected)
+    suggestions.push(`Protect the default branch "${f.branch}" (required reviews / status checks).`);
+  if (!f.files.ci_config) suggestions.push('Add CI (e.g. a Gitea Actions workflow in .gitea/workflows).');
+  if (f.failedRuns > 0)
+    suggestions.push(
+      `${f.failedRuns} of the last ${f.recentRuns} Actions runs failed; inspect them with actions_failures_analyze.`,
+    );
+  if (f.daysSince !== undefined && f.daysSince > 180)
+    suggestions.push(`No commits for ${f.daysSince} days; consider archiving if unmaintained.`);
+  if (!f.hasDescription) suggestions.push('Add a repository description.');
+  if (!f.hasTopics) suggestions.push('Add topics to make the repository discoverable.');
+  return suggestions;
 }
 
 export const extendedTools: ToolDefinition[] = [
@@ -63,8 +118,7 @@ export const extendedTools: ToolDefinition[] = [
     access: 'read',
     input: { ...profileShape, ...repoShape, ...hookScope },
     async run(args, ctx) {
-      const ref = args.org ? undefined : await ctx.repo(args);
-      const res = await ctx.client.paginate(hookBase(args, ref?.owner, ref?.repo), {}, { limit: 200 });
+      const res = await ctx.client.paginate(await hooksPath(ctx, args), {}, { limit: 200 });
       return { webhooks: res.items.map(slimHook) };
     },
   }),
@@ -109,10 +163,9 @@ export const extendedTools: ToolDefinition[] = [
     },
     async run(args, ctx) {
       registerSecret(args.secret);
-      const ref = args.org ? undefined : await ctx.repo(args);
       const res = await ctx.client.request({
         method: 'POST',
-        path: hookBase(args, ref?.owner, ref?.repo),
+        path: await hooksPath(ctx, args),
         body: {
           type: args.type,
           active: args.active,
@@ -153,7 +206,6 @@ export const extendedTools: ToolDefinition[] = [
     },
     async run(args, ctx) {
       registerSecret(args.secret);
-      const ref = args.org ? undefined : await ctx.repo(args);
       const config = compact({ url: args.url, content_type: args.content_type, secret: args.secret });
       const payload = body({
         config: Object.keys(config).length ? config : undefined,
@@ -164,7 +216,7 @@ export const extendedTools: ToolDefinition[] = [
       requireSomeFields(payload, 'the webhook');
       const res = await ctx.client.request({
         method: 'PATCH',
-        path: `${hookBase(args, ref?.owner, ref?.repo)}/${args.id}`,
+        path: `${await hooksPath(ctx, args)}/${args.id}`,
         body: payload,
       });
       return { webhook: slimHook(res.data) };
@@ -182,10 +234,9 @@ export const extendedTools: ToolDefinition[] = [
       return { target: `${where}#hook-${args.id}`, action: `Delete webhook ${args.id} on ${where}.` };
     },
     async run(args, ctx) {
-      const ref = args.org ? undefined : await ctx.repo(args);
       await ctx.client.request({
         method: 'DELETE',
-        path: `${hookBase(args, ref?.owner, ref?.repo)}/${args.id}`,
+        path: `${await hooksPath(ctx, args)}/${args.id}`,
       });
       return { deleted: args.id };
     },
@@ -198,8 +249,8 @@ export const extendedTools: ToolDefinition[] = [
     access: 'write',
     input: { ...profileShape, ...repoShape, id: z.number().int().min(1) },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      await ctx.client.request({ method: 'POST', path: `${repoPath(owner, repo)}/hooks/${args.id}/tests` });
+      const repo = await ctx.repo(args);
+      await ctx.client.request({ method: 'POST', path: `${repo.api}/hooks/${args.id}/tests` });
       return { triggered: true, id: args.id };
     },
   }),
@@ -228,7 +279,7 @@ export const extendedTools: ToolDefinition[] = [
         { all: args.all || undefined, 'subject-type': args.subject_type, since: args.since },
         args,
       );
-      return { has_more: res.hasMore, notifications: res.items.map(slimNotification) };
+      return listResult(res, 'notifications', slimNotification);
     },
   }),
   defineTool({
@@ -269,8 +320,8 @@ export const extendedTools: ToolDefinition[] = [
     access: 'read',
     input: { ...profileShape, ...repoShape },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const base = repoPath(owner, repo);
+      const repo = await ctx.repo(args);
+      const base = repo.api;
       const info = (await ctx.client.request<Record<string, unknown>>({ path: base })).data;
       const branch = typeof info.default_branch === 'string' ? info.default_branch : 'main';
       const soft = <T>(p: Promise<T>) => p.catch(() => undefined);
@@ -303,23 +354,13 @@ export const extendedTools: ToolDefinition[] = [
         ),
       ]);
       const names = new Set((rootFiles ?? []).map((f) => f.name.toLowerCase()));
-      const has = (re: RegExp) => [...names].some((n) => re.test(n));
-      const ciDirs = ['.gitea', '.github', '.forgejo'].filter((d) => names.has(d));
       const lastCommit = commits?.[0];
       const lastDate = lastCommit?.commit.author.date;
       const daysSince = lastDate ? Math.round((Date.now() - Date.parse(lastDate)) / 86_400_000) : undefined;
       const slimRuns = (runs ?? []).map(slimRun);
       const failed = slimRuns.filter((r) => (r as { conclusion?: string }).conclusion === 'failure').length;
       const isProtected = (protections ?? []).some((p) => (p.rule_name ?? p.branch_name) === branch);
-      const files = {
-        readme: has(/^readme(\.|$)/),
-        license: has(/^(license|licence|copying)(\.|$)/),
-        contributing: has(/^contributing(\.|$)/),
-        security: has(/^security(\.|$)/),
-        changelog: has(/^changelog(\.|$)/),
-        gitignore: names.has('.gitignore'),
-        ci_config: ciDirs.length > 0,
-      };
+      const files = communityFiles(names);
       let workflowsPresent = false;
       if (names.has('.gitea')) {
         workflowsPresent = Boolean(
@@ -328,27 +369,20 @@ export const extendedTools: ToolDefinition[] = [
           ),
         );
       }
-      const suggestions: string[] = [];
-      if (!files.readme) suggestions.push('Add a README describing purpose, setup and usage.');
-      if (!files.license) suggestions.push('Add a LICENSE file so others know how they may use the code.');
-      if (!files.contributing && !info.private) suggestions.push('Add CONTRIBUTING guidelines.');
-      if (!files.security && !info.private)
-        suggestions.push('Add a SECURITY policy describing how to report vulnerabilities.');
-      if (!isProtected)
-        suggestions.push(`Protect the default branch "${branch}" (required reviews / status checks).`);
-      if (!files.ci_config) suggestions.push('Add CI (e.g. a Gitea Actions workflow in .gitea/workflows).');
-      if (failed > 0)
-        suggestions.push(
-          `${failed} of the last ${slimRuns.length} Actions runs failed; inspect them with actions_failures_analyze.`,
-        );
-      if (daysSince !== undefined && daysSince > 180)
-        suggestions.push(`No commits for ${daysSince} days; consider archiving if unmaintained.`);
-      if (!info.description) suggestions.push('Add a repository description.');
-      if (!Array.isArray(info.topics) || info.topics.length === 0)
-        suggestions.push('Add topics to make the repository discoverable.');
+      const suggestions = healthSuggestions({
+        files,
+        isPrivate: Boolean(info.private),
+        hasDescription: Boolean(info.description),
+        hasTopics: Array.isArray(info.topics) && info.topics.length > 0,
+        branch,
+        isProtected,
+        failedRuns: failed,
+        recentRuns: slimRuns.length,
+        daysSince,
+      });
       const readme = files.readme
         ? await soft(
-            readTextFile(ctx, owner, repo, [...names].find((n) => /^readme/.test(n)) ?? 'README.md', branch),
+            readTextFile(ctx, repo, [...names].find((n) => /^readme/.test(n)) ?? 'README.md', branch),
           )
         : undefined;
       return {

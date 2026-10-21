@@ -1,13 +1,14 @@
-import { openAsBlob, statSync } from 'node:fs';
-import { basename, isAbsolute, relative, resolve } from 'node:path';
 import * as z from 'zod/v4';
-import { GiteaError } from '../../gitea/errors.js';
+import { GiteaError, ifFound } from '../../gitea/errors.js';
 import { FormData } from '../../gitea/http.js';
 import { slimAsset, slimCommit, slimRelease } from '../../gitea/models.js';
-import { body, pagingShape, profileShape, repoPath, repoShape, requireSomeFields } from '../common.js';
-import { defineTool, type ToolContext, type ToolDefinition } from '../types.js';
+import { readWorkdirFile } from '../../security/workdir.js';
+import { body, pagingShape, profileShape, repoShape, requireSomeFields } from '../common.js';
+import { defineTool, type ToolContext, type RepoRef, type ToolDefinition } from '../types.js';
+import { defaultBranch } from '../shared/repo-files.js';
 import { commitType } from './git.js';
 
+/** Releases, release assets and release notes generated from Conventional Commits. */
 const M = 'releases';
 const tagInput = z.string().min(1).max(255).describe('Tag name, e.g. v1.2.0');
 const releaseRef = z
@@ -83,13 +84,8 @@ export function buildReleaseNotes(
   return parts.join('\n').trim();
 }
 
-async function getRelease(
-  ctx: ToolContext,
-  owner: string,
-  repo: string,
-  ref: number | string,
-): Promise<RawRelease> {
-  const base = `${repoPath(owner, repo)}/releases`;
+async function getRelease(ctx: ToolContext, repo: RepoRef, ref: number | string): Promise<RawRelease> {
+  const base = `${repo.api}/releases`;
   const path =
     typeof ref === 'number'
       ? `${base}/${ref}`
@@ -100,18 +96,8 @@ async function getRelease(
 }
 
 /** Most recent published release tag older than `tag` (by creation date). */
-async function previousReleaseTag(
-  ctx: ToolContext,
-  owner: string,
-  repo: string,
-  tag: string,
-  includePrerelease: boolean,
-) {
-  const res = await ctx.client.paginate<RawRelease>(
-    `${repoPath(owner, repo)}/releases`,
-    { draft: false },
-    { limit: 100 },
-  );
+async function previousReleaseTag(ctx: ToolContext, repo: RepoRef, tag: string, includePrerelease: boolean) {
+  const res = await ctx.client.paginate<RawRelease>(`${repo.api}/releases`, { draft: false }, { limit: 100 });
   const sorted = res.items
     .filter((r) => !r.draft && (includePrerelease || !r.prerelease))
     .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
@@ -120,52 +106,38 @@ async function previousReleaseTag(
   return candidates.find((r) => r.tag_name !== tag)?.tag_name;
 }
 
-async function commitsBetween(
-  ctx: ToolContext,
-  owner: string,
-  repo: string,
-  base: string | undefined,
-  head: string,
-) {
+async function commitsBetween(ctx: ToolContext, repo: RepoRef, base: string | undefined, head: string) {
   if (!base) {
     const res = await ctx.client.paginate<CompareCommit>(
-      `${repoPath(owner, repo)}/commits`,
+      `${repo.api}/commits`,
       { sha: head, stat: false, verification: false, files: false },
       { limit: 500 },
     );
     return res.items;
   }
   const res = await ctx.client.request<{ commits?: CompareCommit[] }>({
-    path: `${repoPath(owner, repo)}/compare/${encodeURIComponent(base)}...${encodeURIComponent(head)}`,
+    path: `${repo.api}/compare/${encodeURIComponent(base)}...${encodeURIComponent(head)}`,
   });
   return res.data.commits ?? [];
 }
 
 async function generateNotes(
   ctx: ToolContext,
-  owner: string,
-  repo: string,
+  repo: RepoRef,
   tag: string,
   target: string | undefined,
   previous: string | undefined,
   includePrerelease: boolean,
 ) {
-  const prev = previous ?? (await previousReleaseTag(ctx, owner, repo, tag, includePrerelease));
+  const prev = previous ?? (await previousReleaseTag(ctx, repo, tag, includePrerelease));
   // An existing tag is the head; for a tag that is about to be created, use its target branch.
-  const tagExists = await ctx.client
-    .request({ path: `${repoPath(owner, repo)}/tags/${encodeURIComponent(tag)}` })
-    .then(() => true)
-    .catch((err: unknown) => {
-      if (err instanceof GiteaError && err.code === 'NOT_FOUND') return false;
-      throw err;
-    });
-  const head =
-    (tagExists ? tag : target) ??
-    (await ctx.client.request<{ default_branch: string }>({ path: repoPath(owner, repo) })).data
-      .default_branch;
-  const commits = await commitsBetween(ctx, owner, repo, prev, head);
+  const tagExists =
+    (await ifFound(ctx.client.request({ path: `${repo.api}/tags/${encodeURIComponent(tag)}` }))) !==
+    undefined;
+  const head = (tagExists ? tag : target) ?? (await defaultBranch(ctx, repo));
+  const commits = await commitsBetween(ctx, repo, prev, head);
   const compareUrl = prev
-    ? new URL(`${owner}/${repo}/compare/${prev}...${tag}`, ctx.profile.baseUrl).href
+    ? new URL(`${repo.fullName}/compare/${prev}...${tag}`, ctx.profile.baseUrl).href
     : undefined;
   return {
     previous_tag: prev,
@@ -174,22 +146,8 @@ async function generateNotes(
   };
 }
 
-function safeLocalFile(cwd: string, requested: string): string {
-  const full = isAbsolute(requested) ? resolve(requested) : resolve(cwd, requested);
-  const rel = relative(resolve(cwd), full);
-  if (rel.startsWith('..') || isAbsolute(rel)) {
-    throw new GiteaError(
-      'INVALID_INPUT',
-      `Only files inside the working directory (${cwd}) can be uploaded.`,
-      {
-        hint: 'This prevents accidentally uploading private files such as SSH keys. Copy the file into the project first.',
-      },
-    );
-  }
-  const st = statSync(full, { throwIfNoEntry: false });
-  if (!st?.isFile()) throw new GiteaError('INVALID_INPUT', `${requested} is not a file.`);
-  return full;
-}
+/** Largest file uploaded as a release asset. */
+const MAX_ASSET_BYTES = 500 * 1024 * 1024;
 
 export const releaseTools: ToolDefinition[] = [
   defineTool({
@@ -207,9 +165,9 @@ export const releaseTools: ToolDefinition[] = [
       ...pagingShape,
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       const res = await ctx.client.paginate(
-        `${repoPath(owner, repo)}/releases`,
+        `${repo.api}/releases`,
         { draft: args.draft, 'pre-release': args.prerelease },
         args,
       );
@@ -228,8 +186,8 @@ export const releaseTools: ToolDefinition[] = [
     access: 'read',
     input: { ...profileShape, ...repoShape, release: releaseRef.default('latest') },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      return slimRelease(await getRelease(ctx, owner, repo, args.release));
+      const repo = await ctx.repo(args);
+      return slimRelease(await getRelease(ctx, repo, args.release));
     },
   }),
   defineTool({
@@ -252,16 +210,8 @@ export const releaseTools: ToolDefinition[] = [
       include_prereleases: z.boolean().default(false),
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      return generateNotes(
-        ctx,
-        owner,
-        repo,
-        args.tag,
-        args.target,
-        args.previous_tag,
-        args.include_prereleases,
-      );
+      const repo = await ctx.repo(args);
+      return generateNotes(ctx, repo, args.tag, args.target, args.previous_tag, args.include_prereleases);
     },
   }),
   defineTool({
@@ -288,18 +238,18 @@ export const releaseTools: ToolDefinition[] = [
       tag_message: z.string().max(10_000).optional().describe('Annotation for a newly created tag'),
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       let notes = args.body;
       let generated: Record<string, unknown> | undefined;
       if (args.generate_notes) {
-        const g = await generateNotes(ctx, owner, repo, args.tag, args.target, args.previous_tag, false);
+        const g = await generateNotes(ctx, repo, args.tag, args.target, args.previous_tag, false);
         notes = notes ? `${notes}\n\n${g.notes}` : g.notes;
         generated = { previous_tag: g.previous_tag, commit_count: g.commit_count };
       }
       const prerelease = args.prerelease ?? isPrereleaseTag(args.tag);
       const res = await ctx.client.request({
         method: 'POST',
-        path: `${repoPath(owner, repo)}/releases`,
+        path: `${repo.api}/releases`,
         body: body({
           tag_name: args.tag,
           target_commitish: args.target,
@@ -332,8 +282,8 @@ export const releaseTools: ToolDefinition[] = [
       prerelease: z.boolean().optional(),
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const rel = await getRelease(ctx, owner, repo, args.release);
+      const repo = await ctx.repo(args);
+      const rel = await getRelease(ctx, repo, args.release);
       const payload = body({
         name: args.name,
         body: args.body,
@@ -345,7 +295,7 @@ export const releaseTools: ToolDefinition[] = [
       requireSomeFields(payload, 'the release');
       const res = await ctx.client.request({
         method: 'PATCH',
-        path: `${repoPath(owner, repo)}/releases/${rel.id}`,
+        path: `${repo.api}/releases/${rel.id}`,
         body: payload,
       });
       return { release: slimRelease(res.data) };
@@ -360,20 +310,20 @@ export const releaseTools: ToolDefinition[] = [
     access: 'destructive',
     input: { ...profileShape, ...repoShape, release: releaseRef, delete_tag: z.boolean().default(false) },
     async confirm(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       return {
-        target: `${owner}/${repo}@${String(args.release)}`,
-        action: `Delete release ${String(args.release)} of ${owner}/${repo} with its assets${args.delete_tag ? ' AND its git tag' : ''}.`,
+        target: `${repo.fullName}@${String(args.release)}`,
+        action: `Delete release ${String(args.release)} of ${repo.fullName} with its assets${args.delete_tag ? ' AND its git tag' : ''}.`,
       };
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const rel = await getRelease(ctx, owner, repo, args.release);
-      await ctx.client.request({ method: 'DELETE', path: `${repoPath(owner, repo)}/releases/${rel.id}` });
+      const repo = await ctx.repo(args);
+      const rel = await getRelease(ctx, repo, args.release);
+      await ctx.client.request({ method: 'DELETE', path: `${repo.api}/releases/${rel.id}` });
       if (args.delete_tag) {
         await ctx.client.request({
           method: 'DELETE',
-          path: `${repoPath(owner, repo)}/tags/${encodeURIComponent(rel.tag_name)}`,
+          path: `${repo.api}/tags/${encodeURIComponent(rel.tag_name)}`,
         });
       }
       return { deleted: rel.tag_name, tag_deleted: args.delete_tag };
@@ -387,10 +337,10 @@ export const releaseTools: ToolDefinition[] = [
     access: 'read',
     input: { ...profileShape, ...repoShape, release: releaseRef },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const rel = await getRelease(ctx, owner, repo, args.release);
+      const repo = await ctx.repo(args);
+      const rel = await getRelease(ctx, repo, args.release);
       const res = await ctx.client.request<unknown[]>({
-        path: `${repoPath(owner, repo)}/releases/${rel.id}/assets`,
+        path: `${repo.api}/releases/${rel.id}/assets`,
       });
       return { release: rel.tag_name, assets: res.data.map(slimAsset) };
     },
@@ -409,15 +359,15 @@ export const releaseTools: ToolDefinition[] = [
       name: z.string().max(255).optional().describe('Asset name (default: file name)'),
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const rel = await getRelease(ctx, owner, repo, args.release);
-      const full = safeLocalFile(ctx.cwd, args.file);
-      const name = args.name ?? basename(full);
+      const repo = await ctx.repo(args);
+      const rel = await getRelease(ctx, repo, args.release);
+      const file = await readWorkdirFile(ctx.cwd, args.file, MAX_ASSET_BYTES);
+      const name = args.name ?? file.name;
       const form = new FormData();
-      form.append('attachment', await openAsBlob(full), name);
+      form.append('attachment', new Blob([file.data]), name);
       const res = await ctx.client.request({
         method: 'POST',
-        path: `${repoPath(owner, repo)}/releases/${rel.id}/assets`,
+        path: `${repo.api}/releases/${rel.id}/assets`,
         query: { name },
         form,
       });
@@ -432,18 +382,18 @@ export const releaseTools: ToolDefinition[] = [
     access: 'destructive',
     input: { ...profileShape, ...repoShape, release: releaseRef, asset_id: z.number().int().min(1) },
     async confirm(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       return {
-        target: `${owner}/${repo}@${String(args.release)}#asset-${args.asset_id}`,
-        action: `Delete asset ${args.asset_id} from release ${String(args.release)} of ${owner}/${repo}.`,
+        target: `${repo.fullName}@${String(args.release)}#asset-${args.asset_id}`,
+        action: `Delete asset ${args.asset_id} from release ${String(args.release)} of ${repo.fullName}.`,
       };
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const rel = await getRelease(ctx, owner, repo, args.release);
+      const repo = await ctx.repo(args);
+      const rel = await getRelease(ctx, repo, args.release);
       await ctx.client.request({
         method: 'DELETE',
-        path: `${repoPath(owner, repo)}/releases/${rel.id}/assets/${args.asset_id}`,
+        path: `${repo.api}/releases/${rel.id}/assets/${args.asset_id}`,
       });
       return { deleted: args.asset_id };
     },
@@ -463,11 +413,11 @@ export const releaseTools: ToolDefinition[] = [
       include_prereleases: z.boolean().default(true),
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       let { base, head } = args;
       if (!base || !head) {
         const list = await ctx.client.paginate<RawRelease>(
-          `${repoPath(owner, repo)}/releases`,
+          `${repo.api}/releases`,
           { draft: false },
           { limit: 50 },
         );
@@ -480,14 +430,14 @@ export const releaseTools: ToolDefinition[] = [
       if (!base || !head)
         throw new GiteaError('NOT_FOUND', 'At least two releases are needed for a comparison.');
       const [baseRel, headRel] = await Promise.all([
-        getRelease(ctx, owner, repo, base).catch(() => undefined),
-        getRelease(ctx, owner, repo, head).catch(() => undefined),
+        getRelease(ctx, repo, base).catch(() => undefined),
+        getRelease(ctx, repo, head).catch(() => undefined),
       ]);
       const res = await ctx.client.request<{
         total_commits?: number;
         commits?: (CompareCommit & { files?: { filename: string; status: string }[] })[];
       }>({
-        path: `${repoPath(owner, repo)}/compare/${encodeURIComponent(base)}...${encodeURIComponent(head)}`,
+        path: `${repo.api}/compare/${encodeURIComponent(base)}...${encodeURIComponent(head)}`,
       });
       const commits = res.data.commits ?? [];
       const files = new Map<string, string>();

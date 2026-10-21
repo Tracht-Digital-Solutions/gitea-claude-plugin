@@ -6,15 +6,16 @@ import {
   colorSchema,
   dateSchema,
   indexSchema,
+  listResult,
   pagingShape,
   profileShape,
-  repoPath,
   repoShape,
   requireSomeFields,
   stateSchema,
 } from '../common.js';
-import { defineTool, type ToolContext, type ToolDefinition } from '../types.js';
+import { defineTool, type ToolContext, type RepoRef, type ToolDefinition } from '../types.js';
 
+/** Issues, comments, labels, milestones and the issue summary used for triage. */
 const M = 'issues';
 
 interface RawIssue {
@@ -103,18 +104,21 @@ export function summarizeIssues(issues: RawIssue[], now = Date.now()) {
 /** Resolves label names (or ids) to ids, as the Gitea API expects ids. */
 export async function resolveLabelIds(
   ctx: ToolContext,
-  owner: string,
-  repo: string,
+  repo: RepoRef,
   labels: (string | number)[],
 ): Promise<number[]> {
   if (labels.every((l): l is number => typeof l === 'number')) return labels;
   const all = await ctx.client.paginate<{ id: number; name: string }>(
-    `${repoPath(owner, repo)}/labels`,
+    `${repo.api}/labels`,
     {},
     { limit: 1000 },
   );
   const org = await ctx.client
-    .paginate<{ id: number; name: string }>(`/orgs/${encodeURIComponent(owner)}/labels`, {}, { limit: 1000 })
+    .paginate<{ id: number; name: string }>(
+      `/orgs/${encodeURIComponent(repo.owner)}/labels`,
+      {},
+      { limit: 1000 },
+    )
     .then((r) => r.items)
     .catch(() => []);
   const known = [...all.items, ...org];
@@ -122,7 +126,7 @@ export async function resolveLabelIds(
     if (typeof l === 'number') return l;
     const found = known.find((k) => k.name.toLowerCase() === l.toLowerCase());
     if (!found) {
-      throw new GiteaError('INVALID_INPUT', `Label "${l}" does not exist in ${owner}/${repo}.`, {
+      throw new GiteaError('INVALID_INPUT', `Label "${l}" does not exist in ${repo.fullName}.`, {
         hint: `Existing labels: ${known.map((k) => k.name).join(', ') || '(none)'}. Create it with label_create.`,
       });
     }
@@ -132,19 +136,18 @@ export async function resolveLabelIds(
 
 export async function resolveMilestoneId(
   ctx: ToolContext,
-  owner: string,
-  repo: string,
+  repo: RepoRef,
   milestone: string | number | undefined,
 ): Promise<number | undefined> {
   if (milestone === undefined || typeof milestone === 'number') return milestone;
   const res = await ctx.client.paginate<{ id: number; title: string }>(
-    `${repoPath(owner, repo)}/milestones`,
+    `${repo.api}/milestones`,
     { state: 'all' },
     { limit: 1000 },
   );
   const found = res.items.find((m) => m.title.toLowerCase() === milestone.toLowerCase());
   if (!found)
-    throw new GiteaError('INVALID_INPUT', `Milestone "${milestone}" does not exist in ${owner}/${repo}.`);
+    throw new GiteaError('INVALID_INPUT', `Milestone "${milestone}" does not exist in ${repo.fullName}.`);
   return found.id;
 }
 
@@ -181,9 +184,9 @@ export const issueTools: ToolDefinition[] = [
       ...pagingShape,
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       const res = await ctx.client.paginate<RawIssue>(
-        `${repoPath(owner, repo)}/issues`,
+        `${repo.api}/issues`,
         {
           state: args.state,
           labels: args.labels?.join(','),
@@ -254,7 +257,7 @@ export const issueTools: ToolDefinition[] = [
         },
         args,
       );
-      return { total: res.totalCount, has_more: res.hasMore, issues: res.items.map((i) => slimIssue(i)) };
+      return listResult(res, 'issues', slimIssue);
     },
   }),
   defineTool({
@@ -271,8 +274,8 @@ export const issueTools: ToolDefinition[] = [
       max_comments: z.number().int().min(1).max(500).default(50),
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const base = `${repoPath(owner, repo)}/issues/${args.number}`;
+      const repo = await ctx.repo(args);
+      const base = `${repo.api}/issues/${args.number}`;
       const issue = await ctx.client.request({ path: base });
       const out: Record<string, unknown> = slimIssue(issue.data, true);
       if (args.include_comments) {
@@ -301,16 +304,16 @@ export const issueTools: ToolDefinition[] = [
       ref: z.string().max(255).optional().describe('Branch/tag the issue refers to.'),
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       const res = await ctx.client.request({
         method: 'POST',
-        path: `${repoPath(owner, repo)}/issues`,
+        path: `${repo.api}/issues`,
         body: body({
           title: args.title,
           body: args.body,
-          labels: args.labels ? await resolveLabelIds(ctx, owner, repo, args.labels) : undefined,
+          labels: args.labels ? await resolveLabelIds(ctx, repo, args.labels) : undefined,
           assignees: args.assignees,
-          milestone: await resolveMilestoneId(ctx, owner, repo, args.milestone),
+          milestone: await resolveMilestoneId(ctx, repo, args.milestone),
           due_date: args.due_date,
           ref: args.ref,
         }),
@@ -339,12 +342,12 @@ export const issueTools: ToolDefinition[] = [
       state: z.enum(['open', 'closed']).optional(),
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       const payload = body({
         title: args.title,
         body: args.body,
         assignees: args.assignees,
-        milestone: args.remove_milestone ? 0 : await resolveMilestoneId(ctx, owner, repo, args.milestone),
+        milestone: args.remove_milestone ? 0 : await resolveMilestoneId(ctx, repo, args.milestone),
         due_date: args.due_date,
         unset_due_date: args.remove_due_date,
         state: args.state,
@@ -352,7 +355,7 @@ export const issueTools: ToolDefinition[] = [
       requireSomeFields(payload, `issue #${args.number}`);
       const res = await ctx.client.request({
         method: 'PATCH',
-        path: `${repoPath(owner, repo)}/issues/${args.number}`,
+        path: `${repo.api}/issues/${args.number}`,
         body: payload,
       });
       return { updated: Object.keys(payload), issue: slimIssue(res.data) };
@@ -372,8 +375,8 @@ export const issueTools: ToolDefinition[] = [
       comment: z.string().max(65_535).optional(),
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const base = `${repoPath(owner, repo)}/issues/${args.number}`;
+      const repo = await ctx.repo(args);
+      const base = `${repo.api}/issues/${args.number}`;
       if (args.comment)
         await ctx.client.request({ method: 'POST', path: `${base}/comments`, body: { body: args.comment } });
       const res = await ctx.client.request({ method: 'PATCH', path: base, body: { state: args.state } });
@@ -394,8 +397,8 @@ export const issueTools: ToolDefinition[] = [
       remove: z.array(z.string()).max(20).optional(),
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const base = `${repoPath(owner, repo)}/issues/${args.number}`;
+      const repo = await ctx.repo(args);
+      const base = `${repo.api}/issues/${args.number}`;
       const current = await ctx.client.request<RawIssue>({ path: base });
       const set = new Set((current.data.assignees ?? []).map((a) => a.login));
       for (const a of args.add ?? []) set.add(a);
@@ -419,17 +422,17 @@ export const issueTools: ToolDefinition[] = [
       replace: labelsInput.optional().describe('Replace all labels with exactly these (empty array clears).'),
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const base = `${repoPath(owner, repo)}/issues/${args.number}/labels`;
+      const repo = await ctx.repo(args);
+      const base = `${repo.api}/issues/${args.number}/labels`;
       if (args.replace) {
-        const ids = await resolveLabelIds(ctx, owner, repo, args.replace);
+        const ids = await resolveLabelIds(ctx, repo, args.replace);
         await ctx.client.request({ method: 'PUT', path: base, body: { labels: ids } });
       }
       if (args.add?.length) {
-        const ids = await resolveLabelIds(ctx, owner, repo, args.add);
+        const ids = await resolveLabelIds(ctx, repo, args.add);
         await ctx.client.request({ method: 'POST', path: base, body: { labels: ids } });
       }
-      for (const id of args.remove?.length ? await resolveLabelIds(ctx, owner, repo, args.remove) : []) {
+      for (const id of args.remove?.length ? await resolveLabelIds(ctx, repo, args.remove) : []) {
         await ctx.client.request({ method: 'DELETE', path: `${base}/${id}` });
       }
       const res = await ctx.client.request<unknown[]>({ path: base });
@@ -444,10 +447,10 @@ export const issueTools: ToolDefinition[] = [
     access: 'write',
     input: { ...profileShape, ...repoShape, number: indexSchema(), body: z.string().min(1).max(65_535) },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       const res = await ctx.client.request({
         method: 'POST',
-        path: `${repoPath(owner, repo)}/issues/${args.number}/comments`,
+        path: `${repo.api}/issues/${args.number}/comments`,
         body: { body: args.body },
       });
       return { created: true, comment: slimComment(res.data) };
@@ -468,8 +471,8 @@ export const issueTools: ToolDefinition[] = [
       limit: z.number().int().min(1).max(1000).default(100),
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const comments = await ctx.client.list(`${repoPath(owner, repo)}/issues/${args.number}/comments`, {
+      const repo = await ctx.repo(args);
+      const comments = await ctx.client.list(`${repo.api}/issues/${args.number}/comments`, {
         since: args.since,
         before: args.before,
       });
@@ -493,10 +496,10 @@ export const issueTools: ToolDefinition[] = [
       body: z.string().min(1).max(65_535),
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       const res = await ctx.client.request({
         method: 'PATCH',
-        path: `${repoPath(owner, repo)}/issues/comments/${args.comment_id}`,
+        path: `${repo.api}/issues/comments/${args.comment_id}`,
         body: { body: args.body },
       });
       return { comment: slimComment(res.data) };
@@ -510,17 +513,17 @@ export const issueTools: ToolDefinition[] = [
     access: 'destructive',
     input: { ...profileShape, ...repoShape, comment_id: z.number().int().min(1) },
     async confirm(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       return {
-        target: `${owner}/${repo}#comment-${args.comment_id}`,
-        action: `Delete comment ${args.comment_id} in ${owner}/${repo}.`,
+        target: `${repo.fullName}#comment-${args.comment_id}`,
+        action: `Delete comment ${args.comment_id} in ${repo.fullName}.`,
       };
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       await ctx.client.request({
         method: 'DELETE',
-        path: `${repoPath(owner, repo)}/issues/comments/${args.comment_id}`,
+        path: `${repo.api}/issues/comments/${args.comment_id}`,
       });
       return { deleted: args.comment_id };
     },
@@ -541,14 +544,14 @@ export const issueTools: ToolDefinition[] = [
       max_issues: z.number().int().min(1).max(2000).default(500),
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       const res = await ctx.client.paginate<RawIssue>(
-        `${repoPath(owner, repo)}/issues`,
+        `${repo.api}/issues`,
         { state: args.state, type: 'issues', labels: args.labels?.join(','), milestones: args.milestone },
         { limit: args.max_issues },
       );
       return {
-        repository: `${owner}/${repo}`,
+        repository: repo.fullName,
         state: args.state,
         analysed_all: !res.hasMore,
         total_matching: res.totalCount,
@@ -564,10 +567,10 @@ export const issueTools: ToolDefinition[] = [
     access: 'read',
     input: { ...profileShape, ...repoShape },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const res = await ctx.client.paginate(`${repoPath(owner, repo)}/labels`, {}, { limit: 1000 });
+      const repo = await ctx.repo(args);
+      const res = await ctx.client.paginate(`${repo.api}/labels`, {}, { limit: 1000 });
       const org = await ctx.client
-        .paginate(`/orgs/${encodeURIComponent(owner)}/labels`, {}, { limit: 1000 })
+        .paginate(`/orgs/${encodeURIComponent(repo.owner)}/labels`, {}, { limit: 1000 })
         .then((r) => r.items)
         .catch(() => []);
       return {
@@ -592,10 +595,10 @@ export const issueTools: ToolDefinition[] = [
       exclusive: z.boolean().optional(),
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       const res = await ctx.client.request({
         method: 'POST',
-        path: `${repoPath(owner, repo)}/labels`,
+        path: `${repo.api}/labels`,
         body: body({
           name: args.name,
           color: args.color,
@@ -623,7 +626,7 @@ export const issueTools: ToolDefinition[] = [
       archived: z.boolean().optional(),
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       const payload = body({
         name: args.name,
         color: args.color,
@@ -634,7 +637,7 @@ export const issueTools: ToolDefinition[] = [
       requireSomeFields(payload, 'the label');
       const res = await ctx.client.request({
         method: 'PATCH',
-        path: `${repoPath(owner, repo)}/labels/${args.id}`,
+        path: `${repo.api}/labels/${args.id}`,
         body: payload,
       });
       return { label: slimLabel(res.data) };
@@ -648,15 +651,15 @@ export const issueTools: ToolDefinition[] = [
     access: 'destructive',
     input: { ...profileShape, ...repoShape, id: z.number().int().min(1) },
     async confirm(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       return {
-        target: `${owner}/${repo}#label-${args.id}`,
-        action: `Delete label ${args.id} in ${owner}/${repo}; it is removed from all issues.`,
+        target: `${repo.fullName}#label-${args.id}`,
+        action: `Delete label ${args.id} in ${repo.fullName}; it is removed from all issues.`,
       };
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      await ctx.client.request({ method: 'DELETE', path: `${repoPath(owner, repo)}/labels/${args.id}` });
+      const repo = await ctx.repo(args);
+      await ctx.client.request({ method: 'DELETE', path: `${repo.api}/labels/${args.id}` });
       return { deleted: args.id };
     },
   }),
@@ -668,13 +671,13 @@ export const issueTools: ToolDefinition[] = [
     access: 'read',
     input: { ...profileShape, ...repoShape, state: stateSchema, name: z.string().optional(), ...pagingShape },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       const res = await ctx.client.paginate(
-        `${repoPath(owner, repo)}/milestones`,
+        `${repo.api}/milestones`,
         { state: args.state, name: args.name },
         args,
       );
-      return { has_more: res.hasMore, milestones: res.items.map(slimMilestone) };
+      return listResult(res, 'milestones', slimMilestone);
     },
   }),
   defineTool({
@@ -691,10 +694,10 @@ export const issueTools: ToolDefinition[] = [
       due_on: dateSchema.optional(),
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       const res = await ctx.client.request({
         method: 'POST',
-        path: `${repoPath(owner, repo)}/milestones`,
+        path: `${repo.api}/milestones`,
         body: body({ title: args.title, description: args.description, due_on: args.due_on }),
       });
       return { created: true, milestone: slimMilestone(res.data) };
@@ -716,7 +719,7 @@ export const issueTools: ToolDefinition[] = [
       state: z.enum(['open', 'closed']).optional(),
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       const payload = body({
         title: args.title,
         description: args.description,
@@ -726,7 +729,7 @@ export const issueTools: ToolDefinition[] = [
       requireSomeFields(payload, 'the milestone');
       const res = await ctx.client.request({
         method: 'PATCH',
-        path: `${repoPath(owner, repo)}/milestones/${args.id}`,
+        path: `${repo.api}/milestones/${args.id}`,
         body: payload,
       });
       return { milestone: slimMilestone(res.data) };
@@ -740,15 +743,15 @@ export const issueTools: ToolDefinition[] = [
     access: 'destructive',
     input: { ...profileShape, ...repoShape, id: z.number().int().min(1) },
     async confirm(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       return {
-        target: `${owner}/${repo}#milestone-${args.id}`,
-        action: `Delete milestone ${args.id} in ${owner}/${repo}.`,
+        target: `${repo.fullName}#milestone-${args.id}`,
+        action: `Delete milestone ${args.id} in ${repo.fullName}.`,
       };
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      await ctx.client.request({ method: 'DELETE', path: `${repoPath(owner, repo)}/milestones/${args.id}` });
+      const repo = await ctx.repo(args);
+      await ctx.client.request({ method: 'DELETE', path: `${repo.api}/milestones/${args.id}` });
       return { deleted: args.id };
     },
   }),

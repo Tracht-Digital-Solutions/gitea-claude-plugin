@@ -3,16 +3,17 @@ import { GiteaError } from '../../gitea/errors.js';
 import { slimOrg, slimRepo, slimTeam, slimUser } from '../../gitea/models.js';
 import {
   body,
+  listResult,
   nameSchema,
   ownerSchema,
   pagingShape,
   profileShape,
-  repoPath,
   repoShape,
   requireSomeFields,
 } from '../common.js';
 import { defineTool, type ToolContext, type ToolDefinition } from '../types.js';
 
+/** Users, organisations, teams and repository collaborators. */
 const M = 'organizations';
 const permissionSchema = z.enum(['read', 'write', 'admin']);
 const orgSchema = ownerSchema.describe('Organisation name');
@@ -71,7 +72,7 @@ export const orgTools: ToolDefinition[] = [
     input: { ...profileShape, query: z.string().min(1).max(100), ...pagingShape },
     async run(args, ctx) {
       const res = await ctx.client.paginate('/users/search', { q: args.query }, args);
-      return { has_more: res.hasMore, users: res.items.map(slimUser) };
+      return listResult(res, 'users', slimUser);
     },
   }),
   defineTool({
@@ -84,7 +85,7 @@ export const orgTools: ToolDefinition[] = [
     async run(args, ctx) {
       const path = args.username ? `/users/${encodeURIComponent(args.username)}/orgs` : '/user/orgs';
       const res = await ctx.client.paginate(path, {}, args);
-      return { has_more: res.hasMore, organizations: res.items.map(slimOrg) };
+      return listResult(res, 'organizations', slimOrg);
     },
   }),
   defineTool({
@@ -113,7 +114,7 @@ export const orgTools: ToolDefinition[] = [
     input: { ...profileShape, org: orgSchema, ...pagingShape },
     async run(args, ctx) {
       const res = await ctx.client.paginate(`/orgs/${encodeURIComponent(args.org)}/members`, {}, args);
-      return { has_more: res.hasMore, members: res.items.map(slimUser) };
+      return listResult(res, 'members', slimUser);
     },
   }),
   defineTool({
@@ -195,7 +196,7 @@ export const orgTools: ToolDefinition[] = [
     input: { ...profileShape, org: orgSchema, ...pagingShape },
     async run(args, ctx) {
       const res = await ctx.client.paginate(`/orgs/${encodeURIComponent(args.org)}/teams`, {}, args);
-      return { has_more: res.hasMore, teams: res.items.map(slimTeam) };
+      return listResult(res, 'teams', slimTeam);
     },
   }),
   defineTool({
@@ -383,17 +384,13 @@ export const orgTools: ToolDefinition[] = [
     access: 'read',
     input: { ...profileShape, ...repoShape, ...pagingShape },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const res = await ctx.client.paginate<{ login: string }>(
-        `${repoPath(owner, repo)}/collaborators`,
-        {},
-        args,
-      );
+      const repo = await ctx.repo(args);
+      const res = await ctx.client.paginate<{ login: string }>(`${repo.api}/collaborators`, {}, args);
       const withPerm = await Promise.all(
         res.items.map(async (u) => {
           const perm = await ctx.client
             .request<{ permission: string; role_name?: string }>({
-              path: `${repoPath(owner, repo)}/collaborators/${encodeURIComponent(u.login)}/permission`,
+              path: `${repo.api}/collaborators/${encodeURIComponent(u.login)}/permission`,
             })
             .then((r) => r.data)
             .catch(() => undefined);
@@ -418,23 +415,23 @@ export const orgTools: ToolDefinition[] = [
       permission: permissionSchema.default('write'),
     },
     async confirm(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       return {
-        target: `${owner}/${repo}:${args.username}`,
+        target: `${repo.fullName}:${args.username}`,
         action:
           args.action === 'add'
-            ? `Give ${args.username} ${args.permission} access to ${owner}/${repo}.`
-            : `Remove ${args.username}'s collaborator access to ${owner}/${repo}.`,
+            ? `Give ${args.username} ${args.permission} access to ${repo.fullName}.`
+            : `Remove ${args.username}'s collaborator access to ${repo.fullName}.`,
       };
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const path = `${repoPath(owner, repo)}/collaborators/${encodeURIComponent(args.username)}`;
+      const repo = await ctx.repo(args);
+      const path = `${repo.api}/collaborators/${encodeURIComponent(args.username)}`;
       if (args.action === 'add')
         await ctx.client.request({ method: 'PUT', path, body: { permission: args.permission } });
       else await ctx.client.request({ method: 'DELETE', path });
       return {
-        repository: `${owner}/${repo}`,
+        repository: repo.fullName,
         username: args.username,
         action: args.action,
         permission: args.action === 'add' ? args.permission : undefined,
@@ -446,12 +443,12 @@ export const orgTools: ToolDefinition[] = [
     module: M,
     title: 'Analyse repository access',
     description:
-      "Shows who can access a repository: your own permission, collaborators with their levels, the owner organisation's teams with access to it, and branch protections. Useful for access reviews.",
+      "Shows who can access a repository: your own permission, collaborators with their levels, the owning organisation's teams with access to it, and branch protections. Useful for access reviews.",
     access: 'read',
     input: { ...profileShape, ...repoShape },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const base = repoPath(owner, repo);
+      const repo = await ctx.repo(args);
+      const base = repo.api;
       const info = (
         await ctx.client.request<{
           private: boolean;
@@ -500,7 +497,7 @@ export const orgTools: ToolDefinition[] = [
         ? collaborators.filter((c) => c.permission === 'admin').map((c) => c.login)
         : undefined;
       return {
-        repository: `${owner}/${repo}`,
+        repository: repo.fullName,
         visibility: info.private ? 'private' : 'public',
         owner: info.owner.login,
         your_permissions: info.permissions,

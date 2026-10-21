@@ -1,13 +1,15 @@
 import { existsSync, statSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
-import { dirname, isAbsolute, relative, resolve } from 'node:path';
+import { dirname } from 'node:path';
 import * as z from 'zod/v4';
-import { GiteaError } from '../../gitea/errors.js';
+import { GiteaError, isGiteaError } from '../../gitea/errors.js';
+import { resolveInWorkdir } from '../../security/workdir.js';
 import { compact, slimJob, slimRun } from '../../gitea/models.js';
-import { body, pagingShape, profileShape, repoPath, repoShape, truncateText } from '../common.js';
-import { defineTool, type ToolContext, type ToolDefinition } from '../types.js';
-import { readTextFile } from './contents.js';
+import { body, listResult, pagingShape, profileShape, repoShape, truncateText } from '../common.js';
+import { defineTool, type ToolContext, type RepoRef, type ToolDefinition } from '../types.js';
+import { readTextFile } from '../shared/repo-files.js';
 
+/** Gitea Actions: workflows, runs, jobs, logs, artifacts, runners, and failure analysis. */
 const M = 'actions';
 const runId = z.number().int().min(1).describe('Workflow run id');
 const jobId = z.number().int().min(1).describe('Job id');
@@ -32,18 +34,18 @@ export function analyzeLog(log: string, tailLines: number) {
   };
 }
 
-async function jobsOfRun(ctx: ToolContext, owner: string, repo: string, run: number) {
+async function jobsOfRun(ctx: ToolContext, repo: RepoRef, run: number) {
   const res = await ctx.client.paginate<Record<string, unknown>>(
-    `${repoPath(owner, repo)}/actions/runs/${run}/jobs`,
+    `${repo.api}/actions/runs/${run}/jobs`,
     {},
     { limit: 200, key: 'jobs' },
   );
   return res.items;
 }
 
-async function jobLog(ctx: ToolContext, owner: string, repo: string, job: number, maxBytes: number) {
+async function jobLog(ctx: ToolContext, repo: RepoRef, job: number, maxBytes: number) {
   const res = await ctx.client.request<string>({
-    path: `${repoPath(owner, repo)}/actions/jobs/${job}/logs`,
+    path: `${repo.api}/actions/jobs/${job}/logs`,
     responseType: 'text',
     maxBytes,
     allowForeignRedirect: true,
@@ -51,14 +53,28 @@ async function jobLog(ctx: ToolContext, owner: string, repo: string, job: number
   return { text: res.data, truncated: res.truncated };
 }
 
-/** Restricts downloads to the working directory (or an explicit absolute path inside it). */
-function safeOutputPath(cwd: string, requested: string): string {
-  const full = isAbsolute(requested) ? resolve(requested) : resolve(cwd, requested);
-  const rel = relative(resolve(cwd), full);
-  if (rel.startsWith('..') || isAbsolute(rel)) {
-    throw new GiteaError('INVALID_INPUT', `Output path must be inside the working directory (${cwd}).`);
-  }
-  return full;
+/** A failed job with its failed steps and, if the server provides logs, the analysed log. */
+async function describeFailedJob(
+  ctx: ToolContext,
+  repo: RepoRef,
+  job: Record<string, unknown>,
+  withLog: boolean,
+  tailLines: number,
+) {
+  const log = withLog
+    ? await jobLog(ctx, repo, Number(job.id), 5 * 1024 * 1024)
+        .then((l): Record<string, unknown> => analyzeLog(l.text, tailLines))
+        .catch((err: unknown) => ({ unavailable: err instanceof GiteaError ? err.message : String(err) }))
+    : undefined;
+  const steps = Array.isArray(job.steps) ? (job.steps as Record<string, unknown>[]) : [];
+  return {
+    ...slimJob(job),
+    steps: undefined,
+    failed_steps: steps
+      .filter((s) => s.conclusion === 'failure' || s.status === 'failure')
+      .map((s) => s.name),
+    log,
+  };
 }
 
 export const actionTools: ToolDefinition[] = [
@@ -71,9 +87,9 @@ export const actionTools: ToolDefinition[] = [
     feature: 'actions_workflows',
     input: { ...profileShape, ...repoShape },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       const workflows = await ctx.client.list<Record<string, unknown>>(
-        `${repoPath(owner, repo)}/actions/workflows`,
+        `${repo.api}/actions/workflows`,
         {},
         'workflows',
       );
@@ -94,11 +110,11 @@ export const actionTools: ToolDefinition[] = [
     feature: 'actions_workflows',
     input: { ...profileShape, ...repoShape, workflow: workflowId, ref: z.string().max(255).optional() },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       const res = await ctx.client.request<{ path?: string; name?: string; state?: string; id?: string }>({
-        path: `${repoPath(owner, repo)}/actions/workflows/${encodeURIComponent(args.workflow)}`,
+        path: `${repo.api}/actions/workflows/${encodeURIComponent(args.workflow)}`,
       });
-      const yaml = res.data.path ? await readTextFile(ctx, owner, repo, res.data.path, args.ref) : undefined;
+      const yaml = res.data.path ? await readTextFile(ctx, repo, res.data.path, args.ref) : undefined;
       return {
         ...compact({ id: res.data.id, name: res.data.name, path: res.data.path, state: res.data.state }),
         content: yaml,
@@ -137,10 +153,10 @@ export const actionTools: ToolDefinition[] = [
       ...pagingShape,
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       const path = args.workflow
-        ? `${repoPath(owner, repo)}/actions/workflows/${encodeURIComponent(args.workflow)}/runs`
-        : `${repoPath(owner, repo)}/actions/runs`;
+        ? `${repo.api}/actions/workflows/${encodeURIComponent(args.workflow)}/runs`
+        : `${repo.api}/actions/runs`;
       const res = await ctx.client.paginate(
         path,
         {
@@ -152,7 +168,7 @@ export const actionTools: ToolDefinition[] = [
         },
         { limit: args.limit, page: args.page, key: 'workflow_runs' },
       );
-      return { total: res.totalCount, has_more: res.hasMore, runs: res.items.map(slimRun) };
+      return listResult(res, 'runs', slimRun);
     },
   }),
   defineTool({
@@ -164,9 +180,9 @@ export const actionTools: ToolDefinition[] = [
     feature: 'actions_runs',
     input: { ...profileShape, ...repoShape, run_id: runId },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const run = await ctx.client.request({ path: `${repoPath(owner, repo)}/actions/runs/${args.run_id}` });
-      const jobs = await jobsOfRun(ctx, owner, repo, args.run_id).catch(() => undefined);
+      const repo = await ctx.repo(args);
+      const run = await ctx.client.request({ path: `${repo.api}/actions/runs/${args.run_id}` });
+      const jobs = await jobsOfRun(ctx, repo, args.run_id).catch(() => undefined);
       return { ...slimRun(run.data), jobs: jobs?.map(slimJob) };
     },
   }),
@@ -187,8 +203,8 @@ export const actionTools: ToolDefinition[] = [
       max_chars: z.number().int().min(1000).max(1_000_000).default(100_000),
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const log = await jobLog(ctx, owner, repo, args.job_id, 20 * 1024 * 1024);
+      const repo = await ctx.repo(args);
+      const log = await jobLog(ctx, repo, args.job_id, 20 * 1024 * 1024);
       if (args.full) {
         const t = truncateText(log.text, args.max_chars);
         return { job_id: args.job_id, truncated: t.truncated || log.truncated, log: t.text };
@@ -217,11 +233,11 @@ export const actionTools: ToolDefinition[] = [
       tail_lines: z.number().int().min(10).max(500).default(60),
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const caps = await ctx.capabilities();
+      const repo = await ctx.repo(args);
+      const withLogs = (await ctx.capabilities()).features.actions_job_logs !== false;
       const path = args.workflow
-        ? `${repoPath(owner, repo)}/actions/workflows/${encodeURIComponent(args.workflow)}/runs`
-        : `${repoPath(owner, repo)}/actions/runs`;
+        ? `${repo.api}/actions/workflows/${encodeURIComponent(args.workflow)}/runs`
+        : `${repo.api}/actions/runs`;
       const runs = await ctx.client.paginate<Record<string, unknown>>(
         path,
         { status: 'failure', branch: args.branch },
@@ -230,32 +246,16 @@ export const actionTools: ToolDefinition[] = [
       const analysed = [];
       for (const run of runs.items) {
         const id = Number(run.id);
-        const jobs = await jobsOfRun(ctx, owner, repo, id).catch(() => [] as Record<string, unknown>[]);
+        const jobs = await jobsOfRun(ctx, repo, id).catch(() => [] as Record<string, unknown>[]);
         const failed = jobs.filter((j) => j.conclusion === 'failure' || j.status === 'failure');
         const failedJobs = [];
         for (const job of failed.slice(0, 5)) {
-          let log: Record<string, unknown> | undefined;
-          if (caps.features.actions_job_logs !== false) {
-            log = await jobLog(ctx, owner, repo, Number(job.id), 5 * 1024 * 1024)
-              .then((l) => analyzeLog(l.text, args.tail_lines))
-              .catch((err: unknown) => ({
-                unavailable: err instanceof GiteaError ? err.message : String(err),
-              }));
-          }
-          const steps = Array.isArray(job.steps) ? (job.steps as Record<string, unknown>[]) : [];
-          failedJobs.push({
-            ...slimJob(job),
-            steps: undefined,
-            failed_steps: steps
-              .filter((s) => s.conclusion === 'failure' || s.status === 'failure')
-              .map((s) => s.name),
-            log,
-          });
+          failedJobs.push(await describeFailedJob(ctx, repo, job, withLogs, args.tail_lines));
         }
         analysed.push({ ...slimRun(run), failed_jobs: failedJobs });
       }
       return {
-        repository: `${owner}/${repo}`,
+        repository: repo.fullName,
         failed_runs_found: runs.totalCount ?? runs.items.length,
         runs: analysed,
         note: runs.items.length ? undefined : 'No failed runs found.',
@@ -278,10 +278,10 @@ export const actionTools: ToolDefinition[] = [
       inputs: z.record(z.string(), z.string()).optional(),
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       const res = await ctx.client.request({
         method: 'POST',
-        path: `${repoPath(owner, repo)}/actions/workflows/${encodeURIComponent(args.workflow)}/dispatches`,
+        path: `${repo.api}/actions/workflows/${encodeURIComponent(args.workflow)}/dispatches`,
         query: { return_run_details: true },
         body: body({ ref: args.ref, inputs: args.inputs }),
       });
@@ -308,8 +308,8 @@ export const actionTools: ToolDefinition[] = [
       job_id: jobId.optional().describe('Required for mode "job".'),
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
-      const base = `${repoPath(owner, repo)}/actions/runs/${args.run_id}`;
+      const repo = await ctx.repo(args);
+      const base = `${repo.api}/actions/runs/${args.run_id}`;
       let path = `${base}/rerun`;
       if (args.mode === 'failed') {
         const caps = await ctx.capabilities();
@@ -334,10 +334,10 @@ export const actionTools: ToolDefinition[] = [
     feature: 'actions_cancel',
     input: { ...profileShape, ...repoShape, run_id: runId },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       await ctx.client.request({
         method: 'POST',
-        path: `${repoPath(owner, repo)}/actions/runs/${args.run_id}/cancel`,
+        path: `${repo.api}/actions/runs/${args.run_id}/cancel`,
       });
       return { cancelled: args.run_id };
     },
@@ -357,10 +357,10 @@ export const actionTools: ToolDefinition[] = [
       limit: z.number().int().min(1).max(500).default(100),
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       const path = args.run_id
-        ? `${repoPath(owner, repo)}/actions/runs/${args.run_id}/artifacts`
-        : `${repoPath(owner, repo)}/actions/artifacts`;
+        ? `${repo.api}/actions/runs/${args.run_id}/artifacts`
+        : `${repo.api}/actions/artifacts`;
       const artifacts = await ctx.client.list<Record<string, unknown>>(
         path,
         { name: args.name },
@@ -401,13 +401,13 @@ export const actionTools: ToolDefinition[] = [
       overwrite: z.boolean().default(false),
     },
     async run(args, ctx) {
-      const { owner, repo } = await ctx.repo(args);
+      const repo = await ctx.repo(args);
       const meta = await ctx.client.request<{ name: string; size_in_bytes: number; expired?: boolean }>({
-        path: `${repoPath(owner, repo)}/actions/artifacts/${args.artifact_id}`,
+        path: `${repo.api}/actions/artifacts/${args.artifact_id}`,
       });
       if (meta.data.expired) throw new GiteaError('NOT_FOUND', `Artifact ${args.artifact_id} has expired.`);
       const safeName = meta.data.name.replace(/[^A-Za-z0-9._-]/g, '_');
-      const target = safeOutputPath(ctx.cwd, args.output_path ?? `artifacts/${safeName}.zip`);
+      const target = resolveInWorkdir(ctx.cwd, args.output_path ?? `artifacts/${safeName}.zip`, 'write');
       if (existsSync(target) && !args.overwrite) {
         throw new GiteaError('CONFLICT', `${target} already exists. Set overwrite to true to replace it.`);
       }
@@ -415,7 +415,7 @@ export const actionTools: ToolDefinition[] = [
         throw new GiteaError('INVALID_INPUT', `${target} is a directory.`);
       }
       const res = await ctx.client.request<Buffer>({
-        path: `${repoPath(owner, repo)}/actions/artifacts/${args.artifact_id}/zip`,
+        path: `${repo.api}/actions/artifacts/${args.artifact_id}/zip`,
         responseType: 'binary',
         maxBytes: 500 * 1024 * 1024,
         allowForeignRedirect: true,
@@ -454,16 +454,19 @@ export const actionTools: ToolDefinition[] = [
         if (!args.org) throw new GiteaError('INVALID_INPUT', 'org is required for scope "org".');
         levels.push({ level: 'organization', path: `/orgs/${encodeURIComponent(args.org)}/actions/runners` });
       } else {
-        const { owner, repo } = await ctx.repo(args);
-        levels.push({ level: 'repository', path: `${repoPath(owner, repo)}/actions/runners` });
+        const repo = await ctx.repo(args);
+        levels.push({ level: 'repository', path: `${repo.api}/actions/runners` });
         const me = await ctx.client
           .request<{ login: string }>({ path: '/user' })
           .then((r) => r.data.login)
           .catch(() => undefined);
-        if (me?.toLowerCase() === owner.toLowerCase()) {
+        if (me?.toLowerCase() === repo.owner.toLowerCase()) {
           levels.push({ level: 'user', path: '/user/actions/runners' });
         } else {
-          levels.push({ level: 'organization', path: `/orgs/${encodeURIComponent(owner)}/actions/runners` });
+          levels.push({
+            level: 'organization',
+            path: `/orgs/${encodeURIComponent(repo.owner)}/actions/runners`,
+          });
         }
       }
       levels.push({ level: 'instance', path: '/admin/actions/runners' });
@@ -495,7 +498,7 @@ export const actionTools: ToolDefinition[] = [
         } catch (err) {
           // The requested level must work; inherited levels may be hidden by missing permissions.
           if (i === 0) throw err;
-          if (err instanceof GiteaError && ['FORBIDDEN', 'NOT_FOUND', 'UNAUTHORIZED'].includes(err.code)) {
+          if (isGiteaError(err, 'FORBIDDEN', 'NOT_FOUND', 'UNAUTHORIZED')) {
             unavailable.push(l.level);
             continue;
           }

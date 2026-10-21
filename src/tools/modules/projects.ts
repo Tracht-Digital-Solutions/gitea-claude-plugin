@@ -7,12 +7,12 @@ import {
   indexSchema,
   ownerSchema,
   profileShape,
-  repoPath,
   repoShape,
   requireSomeFields,
 } from '../common.js';
 import { defineTool, type ToolContext, type ToolDefinition } from '../types.js';
 
+/** Project boards of repositories, organisations and users: projects, columns and cards. */
 const M = 'projects';
 
 interface RawProject {
@@ -73,8 +73,8 @@ async function projectsBase(ctx: ToolContext, args: ScopeArgs): Promise<string> 
     if (!args.org) throw new GiteaError('INVALID_INPUT', 'org is required for scope "org".');
     return `/orgs/${encodeURIComponent(args.org)}/projects`;
   }
-  const { owner, repo } = await ctx.repo(args);
-  return `${repoPath(owner, repo)}/projects`;
+  const repo = await ctx.repo(args);
+  return `${repo.api}/projects`;
 }
 
 function slimProject(p: RawProject) {
@@ -156,11 +156,11 @@ async function issueIds(
   args: { owner?: string | undefined; repo?: string | undefined },
   numbers: number[],
 ) {
-  const { owner, repo } = await ctx.repo(args);
+  const repo = await ctx.repo(args);
   const out: { number: number; id: number; title: string }[] = [];
   for (const n of numbers) {
     const res = await ctx.client.request<{ id: number; number: number; title: string }>({
-      path: `${repoPath(owner, repo)}/issues/${n}`,
+      path: `${repo.api}/issues/${n}`,
     });
     out.push({ number: res.data.number, id: res.data.id, title: res.data.title });
   }
