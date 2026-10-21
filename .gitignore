@@ -1,13 +1,18 @@
+# Dependencies
 node_modules/
-plugin/dist/
-dist/
-coverage/
-release/
-out-a/
-out-b/
-pkg/
-dl/
-ci-tools/node_modules/
+
+# Build and packaging output (anchored to the repository root so that e.g.
+# plugin/skills/release/ is not matched)
+/plugin/dist/
+/dist/
+/coverage/
+/release/
+/out-a/
+/out-b/
+/pkg/
+/dl/
+
+# Local files
 *.log
 .env
 .env.*
@@ -17,5 +22,5 @@ Thumbs.db
 .idea/
 .vscode/*
 !.vscode/extensions.json
-.gitea-test/
+/.gitea-test/
 *.tsbuildinfo
