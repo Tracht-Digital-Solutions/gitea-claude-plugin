@@ -6,7 +6,7 @@
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%E2%89%A522.19-339933?logo=node.js&logoColor=white)](https://nodejs.org)
 
-A [Claude Code](https://code.claude.com) plugin that connects Claude to **any Gitea instance** — gitea.com or your own self-hosted server. It ships a bundled MCP server with **153 tools** and **7 workflow skills** for repositories, files, branches, issues, pull requests and reviews, organisations and teams, Gitea Actions, releases, webhooks and notifications.
+A [Claude Code](https://code.claude.com) plugin that connects Claude to **any Gitea instance** — gitea.com or your own self-hosted server. It ships a bundled MCP server with **154 tools** and **7 workflow skills** for repositories, files, branches, issues, pull requests and reviews, organisations and teams, Gitea Actions, releases, webhooks and notifications.
 
 > 🇩🇪 Deutsche Dokumentation: [docs/de/README.md](docs/de/README.md)
 

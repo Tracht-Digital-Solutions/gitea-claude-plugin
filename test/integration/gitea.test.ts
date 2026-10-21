@@ -425,7 +425,35 @@ describe.skipIf(!env)('Gitea integration', () => {
       expect(titles.length).toBeGreaterThanOrEqual(3);
       const list = await h.call('project_list', { owner, repo: REPO });
       expect(list.projects.map((p: Obj) => p.title)).toContain('Sprint 1');
-      await h.call('project_column_create', { owner, repo: REPO, id, title: 'Review', color: '00aabb' });
+      // basic_kanban creates every column with sorting 0; a new column still gets a defined place.
+      const added = await h.call('project_column_create', {
+        owner,
+        repo: REPO,
+        id,
+        title: 'Review',
+        color: '00aabb',
+      });
+      expect(added.order.at(-1)).toBe('Review');
+      const reordered = await h.call('project_column_move', {
+        owner,
+        repo: REPO,
+        id,
+        column: 'Review',
+        position: titles.length,
+      });
+      expect(reordered.order).toEqual([...titles.slice(0, -1), 'Review', titles.at(-1)]);
+      const blocked = await h.call('project_column_create', {
+        owner,
+        repo: REPO,
+        id,
+        title: 'Blocked',
+        position: 1,
+      });
+      expect(blocked.order[0]).toBe('Blocked');
+      expect(
+        (await h.call('project_get', { owner, repo: REPO, id })).columns.map((c: Obj) => c.title),
+      ).toEqual(blocked.order);
+      await h.call('project_column_delete', { owner, repo: REPO, id, column: 'Blocked' });
       await h.call('project_column_update', {
         owner,
         repo: REPO,
@@ -930,8 +958,12 @@ describe.skipIf(!env)('Gitea integration', () => {
     });
 
     it('lists runners for repository, user and organisation', async () => {
+      // The test runner is registered for the whole instance: the repository has no runner of its
+      // own, yet jobs run. The tool must report the inherited runner instead of "stays queued".
       const r = await h.call('actions_runner_list', { owner, repo: REPO });
-      expect(r).toHaveProperty('total');
+      expect(r.online).toBeGreaterThanOrEqual(1);
+      expect(r.runners.map((x: Obj) => x.level)).toContain('instance');
+      expect(r.note).toBeUndefined();
       expect((await h.call('actions_runner_list', { scope: 'user' })).scope).toBe('user');
       expect((await h.call('actions_runner_list', { scope: 'org', org: ORG })).scope).toBe('org');
     });

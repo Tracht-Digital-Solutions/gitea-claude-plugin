@@ -55,6 +55,7 @@ const scopeShape = {
 };
 
 const projectId = z.number().int().min(1).describe('Project id (see project_list)');
+const columnPosition = z.number().int().min(1).max(100).describe('Position from the left, 1-based');
 const columnRef = z
   .union([z.string().min(1).max(255), z.number().int().min(1)])
   .describe('Column title or id');
@@ -98,6 +99,30 @@ const slimColumn = (c: RawColumn) =>
 async function columns(ctx: ToolContext, base: string, id: number): Promise<RawColumn[]> {
   const res = await ctx.client.paginate<RawColumn>(`${base}/${id}/columns`, {}, { limit: 200 });
   return res.items.sort((a, b) => (a.sorting ?? 0) - (b.sorting ?? 0));
+}
+
+/** New left-to-right order after moving one column to a 1-based position (clamped). */
+export function reorder(ids: number[], columnId: number, position: number): number[] {
+  const rest = ids.filter((c) => c !== columnId);
+  const index = Math.min(Math.max(position, 1), rest.length + 1) - 1;
+  return [...rest.slice(0, index), columnId, ...rest.slice(index)];
+}
+
+/** Gitea reorders columns only as a whole: the request lists every column id in its new order. */
+async function moveColumn(ctx: ToolContext, base: string, id: number, columnId: number, position: number) {
+  const current = await columns(ctx, base, id);
+  const order = reorder(
+    current.map((c) => c.id),
+    columnId,
+    position,
+  );
+  await ctx.client.request({
+    method: 'POST',
+    path: `${base}/${id}/columns/move`,
+    body: { column_ids: order },
+  });
+  const after = await columns(ctx, base, id);
+  return after.map((c) => c.title);
 }
 
 async function resolveColumn(
@@ -307,7 +332,8 @@ export const projectTools: ToolDefinition[] = [
     name: 'project_column_create',
     module: M,
     title: 'Add project column',
-    description: 'Adds a column to a project board, optionally with a colour.',
+    description:
+      'Adds a column to a project board, optionally with a colour and at a position (1 = leftmost; default: rightmost).',
     access: 'write',
     feature: 'projects',
     input: {
@@ -317,6 +343,7 @@ export const projectTools: ToolDefinition[] = [
       id: projectId,
       title: z.string().min(1).max(255),
       color: colorSchema.optional(),
+      position: columnPosition.optional(),
     },
     async run(args, ctx) {
       const base = await projectsBase(ctx, args);
@@ -325,7 +352,34 @@ export const projectTools: ToolDefinition[] = [
         path: `${base}/${args.id}/columns`,
         body: body({ title: args.title, color: args.color }),
       });
-      return { created: true, column: slimColumn(res.data) };
+      // Always store an explicit order: templates create every column with sorting 0, so a new
+      // column would otherwise not have a well-defined place.
+      const all = await columns(ctx, base, args.id);
+      const order = await moveColumn(ctx, base, args.id, res.data.id, args.position ?? all.length);
+      return { created: true, column: slimColumn(res.data), order };
+    },
+  }),
+  defineTool({
+    name: 'project_column_move',
+    module: M,
+    title: 'Move project column',
+    description:
+      'Moves a column of a project board to another position (1 = leftmost), e.g. to put "Review" before "Done".',
+    access: 'write',
+    feature: 'projects',
+    input: {
+      ...profileShape,
+      ...repoShape,
+      ...scopeShape,
+      id: projectId,
+      column: columnRef,
+      position: columnPosition,
+    },
+    async run(args, ctx) {
+      const base = await projectsBase(ctx, args);
+      const col = await resolveColumn(ctx, base, args.id, args.column);
+      const order = await moveColumn(ctx, base, args.id, col.id, args.position);
+      return { moved: col.title, order };
     },
   }),
   defineTool({

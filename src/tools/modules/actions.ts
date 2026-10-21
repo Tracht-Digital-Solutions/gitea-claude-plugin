@@ -432,7 +432,7 @@ export const actionTools: ToolDefinition[] = [
     module: M,
     title: 'List Actions runners',
     description:
-      'Lists the Actions runners available to a repository, an organisation (org) or your user account, with status, labels and whether they are busy. Use it to find out why a workflow run stays queued.',
+      'Lists the Actions runners that can pick up jobs of a repository, an organisation (org) or your user account: runners registered at that level plus those inherited from the owner (user or organisation) and the whole instance (visible to admins), with status, labels and whether they are busy. Use it to find out why a workflow run stays queued.',
     access: 'read',
     feature: 'actions_runners',
     input: {
@@ -445,38 +445,85 @@ export const actionTools: ToolDefinition[] = [
         .optional(),
     },
     async run(args, ctx) {
-      let path: string;
-      if (args.scope === 'user') path = '/user/actions/runners';
-      else if (args.scope === 'org') {
+      // Levels whose runners can pick up jobs, most specific first. A job runs on any matching
+      // runner of the repository, its owner (user or organisation) or the instance.
+      const levels: { level: string; path: string }[] = [];
+      if (args.scope === 'user') {
+        levels.push({ level: 'user', path: '/user/actions/runners' });
+      } else if (args.scope === 'org') {
         if (!args.org) throw new GiteaError('INVALID_INPUT', 'org is required for scope "org".');
-        path = `/orgs/${encodeURIComponent(args.org)}/actions/runners`;
+        levels.push({ level: 'organization', path: `/orgs/${encodeURIComponent(args.org)}/actions/runners` });
       } else {
         const { owner, repo } = await ctx.repo(args);
-        path = `${repoPath(owner, repo)}/actions/runners`;
+        levels.push({ level: 'repository', path: `${repoPath(owner, repo)}/actions/runners` });
+        const me = await ctx.client
+          .request<{ login: string }>({ path: '/user' })
+          .then((r) => r.data.login)
+          .catch(() => undefined);
+        if (me?.toLowerCase() === owner.toLowerCase()) {
+          levels.push({ level: 'user', path: '/user/actions/runners' });
+        } else {
+          levels.push({ level: 'organization', path: `/orgs/${encodeURIComponent(owner)}/actions/runners` });
+        }
       }
-      const runners = await ctx.client.list<Record<string, unknown>>(path, {}, 'runners');
+      levels.push({ level: 'instance', path: '/admin/actions/runners' });
+
+      const isOnline = (r: Record<string, unknown>) =>
+        r.status === 'online' || r.status === 'idle' || r.status === 'active';
+      const slim = (r: Record<string, unknown>, level: string) =>
+        compact({
+          id: r.id,
+          name: r.name,
+          level,
+          status: r.status,
+          busy: r.busy,
+          disabled: r.disabled || undefined,
+          labels: Array.isArray(r.labels)
+            ? r.labels.map((l: unknown) =>
+                typeof l === 'object' && l !== null ? (l as { name?: string }).name : l,
+              )
+            : undefined,
+        });
+
+      const seen = new Set<unknown>();
+      const runners: Record<string, unknown>[] = [];
+      const unavailable: string[] = [];
+      for (const [i, l] of levels.entries()) {
+        let list: Record<string, unknown>[];
+        try {
+          list = await ctx.client.list<Record<string, unknown>>(l.path, {}, 'runners');
+        } catch (err) {
+          // The requested level must work; inherited levels may be hidden by missing permissions.
+          if (i === 0) throw err;
+          if (err instanceof GiteaError && ['FORBIDDEN', 'NOT_FOUND', 'UNAUTHORIZED'].includes(err.code)) {
+            unavailable.push(l.level);
+            continue;
+          }
+          throw err;
+        }
+        for (const r of list) {
+          if (seen.has(r.id)) continue;
+          seen.add(r.id);
+          runners.push(slim(r, l.level));
+        }
+      }
+      const online = runners.filter((r) => isOnline(r) && !r.disabled).length;
+      let note: string | undefined;
+      if (runners.length === 0) {
+        note = `No runner is available to this ${levels[0]!.level}; workflow runs will stay queued until one is registered.`;
+      } else if (online === 0) {
+        note = 'Runners exist but none is online and enabled; workflow runs will stay queued.';
+      }
+      if (unavailable.length) {
+        const hidden = `Runners of the ${unavailable.join(' and ')} level could not be listed with this token (they may still run jobs).`;
+        note = note ? `${note} ${hidden}` : hidden;
+      }
       return {
         scope: args.scope,
         total: runners.length,
-        online: runners.filter((r) => r.status === 'online' || r.status === 'idle' || r.status === 'active')
-          .length,
-        runners: runners.map((r) =>
-          compact({
-            id: r.id,
-            name: r.name,
-            status: r.status,
-            busy: r.busy,
-            disabled: r.disabled || undefined,
-            labels: Array.isArray(r.labels)
-              ? r.labels.map((l: unknown) =>
-                  typeof l === 'object' && l !== null ? (l as { name?: string }).name : l,
-                )
-              : undefined,
-          }),
-        ),
-        note: runners.length
-          ? undefined
-          : 'No runner is registered for this scope; workflow runs will stay queued. Instance-wide runners are not listed here.',
+        online,
+        runners,
+        note,
       };
     },
   }),

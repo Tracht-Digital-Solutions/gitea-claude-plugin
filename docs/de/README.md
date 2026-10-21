@@ -1,6 +1,6 @@
 # Gitea für Claude Code
 
-Ein [Claude-Code](https://code.claude.com)-Plugin, das Claude mit **jeder Gitea-Instanz** verbindet – gitea.com oder einem eigenen, selbst gehosteten Server (auch in Docker). Es bringt einen gebündelten MCP-Server mit **153 Tools** und **7 Workflow-Skills** für Repositories, Dateien, Branches, Issues, Pull Requests und Reviews, Organisationen und Teams, Gitea Actions, Releases, Webhooks und Benachrichtigungen mit.
+Ein [Claude-Code](https://code.claude.com)-Plugin, das Claude mit **jeder Gitea-Instanz** verbindet – gitea.com oder einem eigenen, selbst gehosteten Server (auch in Docker). Es bringt einen gebündelten MCP-Server mit **154 Tools** und **7 Workflow-Skills** für Repositories, Dateien, Branches, Issues, Pull Requests und Reviews, Organisationen und Teams, Gitea Actions, Releases, Webhooks und Benachrichtigungen mit.
 
 > English documentation: [README.md](../../README.md)
 
