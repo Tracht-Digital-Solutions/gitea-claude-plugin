@@ -12,6 +12,7 @@
   "repository": "https://github.com/jtracht/claude-code-gitea",
   "license": "Apache-2.0",
   "keywords": ["gitea", "forgejo", "git", "mcp", "issues", "pull-requests", "actions", "releases"],
+  "icon": "./.claude-plugin/icon.png",
   "userConfig": {
     "gitea_url": {
       "type": "string",
