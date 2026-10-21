@@ -1,4 +1,4 @@
-import { readFile, stat } from 'node:fs/promises';
+import { open } from 'node:fs/promises';
 import { basename, isAbsolute, relative, resolve } from 'node:path';
 import * as z from 'zod/v4';
 import { GiteaError } from '../../gitea/errors.js';
@@ -154,9 +154,18 @@ export const packageTools: ToolDefinition[] = [
           `Only files inside the working directory (${ctx.cwd}) can be uploaded.`,
         );
       }
-      const st = await stat(full).catch(() => undefined);
-      if (!st?.isFile()) throw new GiteaError('INVALID_INPUT', `${args.file} is not a file.`);
-      if (st.size > 500 * 1024 * 1024) throw new GiteaError('INVALID_INPUT', 'File is larger than 500 MB.');
+      // Check and read through one handle so the file cannot change between check and read.
+      const handle = await open(full, 'r').catch(() => undefined);
+      if (!handle) throw new GiteaError('INVALID_INPUT', `${args.file} is not a readable file.`);
+      let data: Buffer;
+      try {
+        const st = await handle.stat();
+        if (!st.isFile()) throw new GiteaError('INVALID_INPUT', `${args.file} is not a file.`);
+        if (st.size > 500 * 1024 * 1024) throw new GiteaError('INVALID_INPUT', 'File is larger than 500 MB.');
+        data = await handle.readFile();
+      } finally {
+        await handle.close();
+      }
       const fileName = args.file_name ?? basename(full);
       if (!GENERIC_NAME.test(fileName)) {
         throw new GiteaError(
@@ -170,7 +179,7 @@ export const packageTools: ToolDefinition[] = [
         method: 'PUT',
         root: true,
         path: `api/packages/${seg(args.owner)}/generic/${seg(args.name)}/${seg(args.version)}/${seg(fileName)}`,
-        raw: await readFile(full),
+        raw: data,
         responseType: 'text',
       });
       return {
@@ -179,7 +188,7 @@ export const packageTools: ToolDefinition[] = [
         name: args.name,
         version: args.version,
         file: fileName,
-        bytes: st.size,
+        bytes: data.length,
       };
     },
   }),
