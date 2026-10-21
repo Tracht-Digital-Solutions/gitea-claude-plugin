@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "jtracht-gitea",
+  "description": "Gitea integration for Claude Code: repositories, issues, pull requests, Gitea Actions and releases of any Gitea instance.",
+  "owner": {
+    "name": "Julian Tracht",
+    "url": "https://github.com/jtracht"
+  },
+  "plugins": [
+    {
+      "name": "gitea",
+      "displayName": "Gitea",
+      "description": "Work with any Gitea instance: repositories, files, branches, issues, pull requests, reviews, organisations, Gitea Actions, releases and webhooks.",
+      "category": "development",
+      "tags": ["gitea", "forgejo", "git", "mcp", "ci", "code-review"],
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/jtracht/claude-code-gitea.git",
+        "path": "plugin",
+        "ref": "stable"
+      }
+    }
+  ]
+}
