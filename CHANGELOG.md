@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.6.0](https://github.com/Tracht-Digital-Solutions/gitea-claude-plugin/compare/v0.5.2...v0.6.0) (2026-10-22)
+
+
+### ⚠ BREAKING CHANGES
+
+* the marketplace is renamed from jtracht-gitea to tds-gitea. Remove the jtracht-gitea marketplace, add Tracht-Digital-Solutions/gitea-claude-plugin and install gitea@tds-gitea.
+
+### Miscellaneous
+
+* move repository to Tracht-Digital-Solutions ([#27](https://github.com/Tracht-Digital-Solutions/gitea-claude-plugin/issues/27)) ([21e6a2e](https://github.com/Tracht-Digital-Solutions/gitea-claude-plugin/commit/21e6a2e2d882e34fa8b0060b955b770c5c7d16f3))
+
 ## [0.5.2](https://github.com/jtracht/gitea-claude-plugin/compare/v0.5.1...v0.5.2) (2026-10-21)
 
 
