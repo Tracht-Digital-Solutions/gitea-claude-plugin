@@ -3,8 +3,8 @@
   "name": "jtracht-gitea",
   "description": "Gitea integration for Claude Code: repositories, issues, pull requests, Gitea Actions and releases of any Gitea instance.",
   "owner": {
-    "name": "Julian Tracht",
-    "url": "https://github.com/jtracht"
+    "name": "Tracht Digital Solutions",
+    "url": "https://github.com/Tracht-Digital-Solutions"
   },
   "plugins": [
     {
@@ -15,7 +15,7 @@
       "tags": ["gitea", "forgejo", "git", "mcp", "ci", "code-review"],
       "source": {
         "source": "git-subdir",
-        "url": "https://github.com/jtracht/gitea-claude-plugin.git",
+        "url": "https://github.com/Tracht-Digital-Solutions/gitea-claude-plugin.git",
         "path": "plugin",
         "ref": "stable"
       }
