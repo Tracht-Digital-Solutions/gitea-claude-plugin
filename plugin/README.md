@@ -10,10 +10,10 @@ triage, CI failure analysis, releases and repository overviews.
 Install:
 
 ```bash
-claude plugin install gitea --marketplace jtracht/gitea-claude-plugin
+claude plugin install gitea --marketplace Tracht-Digital-Solutions/gitea-claude-plugin
 # or inside Claude Code:
-/plugin marketplace add jtracht/gitea-claude-plugin
-/plugin install gitea@jtracht-gitea
+/plugin marketplace add Tracht-Digital-Solutions/gitea-claude-plugin
+/plugin install gitea@tds-gitea
 ```
 
 Configure the Gitea server URL and a personal access token in `/plugin` → gitea → Configure. The
@@ -21,4 +21,4 @@ token is kept in the operating system's credential store. Destructive and admini
 operations are disabled by default and always require confirmation. Node.js 22.19 or newer must be
 on the PATH.
 
-Documentation: https://github.com/jtracht/gitea-claude-plugin
+Documentation: https://github.com/Tracht-Digital-Solutions/gitea-claude-plugin
