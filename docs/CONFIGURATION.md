@@ -6,7 +6,7 @@ terminal:
 
 ```bash
 claude plugin configure gitea                      # show options and which are unset
-claude plugin install gitea@jtracht-gitea \
+claude plugin install gitea@tds-gitea \
   --config gitea_url=https://git.example.com      # set options during installation
 ```
 

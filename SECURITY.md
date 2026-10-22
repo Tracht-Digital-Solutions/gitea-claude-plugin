@@ -3,13 +3,13 @@
 ## Supported versions
 
 Security fixes are released for the latest minor version. Please update to the newest release
-(`claude plugin update gitea@jtracht-gitea`) before reporting an issue.
+(`claude plugin update gitea@tds-gitea`) before reporting an issue.
 
 ## Reporting a vulnerability
 
 Please **do not open a public issue** for security problems. Use GitHub's private vulnerability
 reporting instead: **Security → Report a vulnerability** on
-<https://github.com/jtracht/gitea-claude-plugin/security/advisories/new>.
+<https://github.com/Tracht-Digital-Solutions/gitea-claude-plugin/security/advisories/new>.
 
 Include the affected version, a description of the impact, and steps to reproduce. Never include
 real API tokens, even revoked ones. You will receive an acknowledgement within 7 days; confirmed

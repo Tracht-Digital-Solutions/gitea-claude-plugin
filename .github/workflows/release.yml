@@ -206,7 +206,7 @@ jobs:
         # DISPATCH_TOKEN: fine-grained PAT with contents read & write on the marketplace repository.
         env:
           GH_TOKEN: ${{ secrets.DISPATCH_TOKEN }}
-        run: gh api repos/jtracht/claude-plugin-marketplace/dispatches -f event_type=plugin-updated
+        run: gh api repos/Tracht-Digital-Solutions/claude-plugin-marketplace/dispatches -f event_type=plugin-updated
 
   verify-install:
     name: Verify installation

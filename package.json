@@ -5,13 +5,13 @@
   "description": "Gitea plugin for Claude Code: an MCP server that brings repositories, issues, pull requests, Actions and releases of any Gitea instance into Claude Code.",
   "license": "Apache-2.0",
   "author": "Julian Tracht",
-  "homepage": "https://github.com/jtracht/gitea-claude-plugin#readme",
+  "homepage": "https://github.com/Tracht-Digital-Solutions/gitea-claude-plugin#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/jtracht/gitea-claude-plugin.git"
+    "url": "git+https://github.com/Tracht-Digital-Solutions/gitea-claude-plugin.git"
   },
   "bugs": {
-    "url": "https://github.com/jtracht/gitea-claude-plugin/issues"
+    "url": "https://github.com/Tracht-Digital-Solutions/gitea-claude-plugin/issues"
   },
   "keywords": [
     "gitea",

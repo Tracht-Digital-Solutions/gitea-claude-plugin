@@ -15,17 +15,17 @@ self-contained: nothing is downloaded or compiled during installation.
 ## Install from the marketplace
 
 ```bash
-claude plugin marketplace add jtracht/gitea-claude-plugin
-claude plugin install gitea@jtracht-gitea
+claude plugin marketplace add Tracht-Digital-Solutions/gitea-claude-plugin
+claude plugin install gitea@tds-gitea
 ```
 
-or inside Claude Code: `/plugin marketplace add jtracht/gitea-claude-plugin`, then
-`/plugin install gitea@jtracht-gitea`.
+or inside Claude Code: `/plugin marketplace add Tracht-Digital-Solutions/gitea-claude-plugin`, then
+`/plugin install gitea@tds-gitea`.
 
 The marketplace entry points to the `stable` branch, which contains exactly the files of the latest
 release (the plugin directory of the release tag plus the built server, identical to the release
 zip). Updates arrive with
-`claude plugin update gitea@jtracht-gitea` or `/plugin marketplace update jtracht-gitea`; enable
+`claude plugin update gitea@tds-gitea` or `/plugin marketplace update tds-gitea`; enable
 auto-update for the marketplace in `/plugin` → **Marketplaces** if you like.
 
 Without a GitHub SSH key set `CLAUDE_CODE_PLUGIN_PREFER_HTTPS=1` before adding the marketplace.
@@ -41,8 +41,8 @@ Without a GitHub SSH key set `CLAUDE_CODE_PLUGIN_PREFER_HTTPS=1` before adding t
 ## Install a release archive manually
 
 ```bash
-curl -LO https://github.com/jtracht/gitea-claude-plugin/releases/download/vX.Y.Z/gitea-plugin-X.Y.Z.zip
-curl -LO https://github.com/jtracht/gitea-claude-plugin/releases/download/vX.Y.Z/SHA256SUMS
+curl -LO https://github.com/Tracht-Digital-Solutions/gitea-claude-plugin/releases/download/vX.Y.Z/gitea-plugin-X.Y.Z.zip
+curl -LO https://github.com/Tracht-Digital-Solutions/gitea-claude-plugin/releases/download/vX.Y.Z/SHA256SUMS
 sha256sum --check --ignore-missing SHA256SUMS
 unzip gitea-plugin-X.Y.Z.zip            # creates ./gitea
 claude --plugin-dir ./gitea
@@ -51,7 +51,7 @@ claude --plugin-dir ./gitea
 ## Build from source
 
 ```bash
-git clone https://github.com/jtracht/gitea-claude-plugin.git
+git clone https://github.com/Tracht-Digital-Solutions/gitea-claude-plugin.git
 cd gitea-claude-plugin
 npm ci
 npm run build                 # writes plugin/dist/server.mjs
@@ -61,8 +61,8 @@ claude --plugin-dir ./plugin
 ## Uninstall
 
 ```bash
-claude plugin uninstall gitea@jtracht-gitea
-claude plugin marketplace remove jtracht-gitea   # also deletes the stored options and token
+claude plugin uninstall gitea@tds-gitea
+claude plugin marketplace remove tds-gitea   # also deletes the stored options and token
 ```
 
 ## Troubleshooting

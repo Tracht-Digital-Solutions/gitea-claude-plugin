@@ -9,7 +9,7 @@ Requirements: Node.js ≥ 22.19, npm, git, Docker (for integration tests) and th
 (for manifest validation).
 
 ```bash
-git clone https://github.com/jtracht/gitea-claude-plugin.git
+git clone https://github.com/Tracht-Digital-Solutions/gitea-claude-plugin.git
 cd gitea-claude-plugin
 npm ci
 npm run check
