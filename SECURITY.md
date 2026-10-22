@@ -3,7 +3,7 @@
 ## Supported versions
 
 Security fixes are released for the latest minor version. Please update to the newest release
-(`claude plugin update gitea@jtracht-gitea`) before reporting an issue.
+(`claude plugin update gitea@tds-gitea`) before reporting an issue.
 
 ## Reporting a vulnerability
 

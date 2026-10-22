@@ -13,7 +13,7 @@ Install:
 claude plugin install gitea --marketplace Tracht-Digital-Solutions/gitea-claude-plugin
 # or inside Claude Code:
 /plugin marketplace add Tracht-Digital-Solutions/gitea-claude-plugin
-/plugin install gitea@jtracht-gitea
+/plugin install gitea@tds-gitea
 ```
 
 Configure the Gitea server URL and a personal access token in `/plugin` → gitea → Configure. The

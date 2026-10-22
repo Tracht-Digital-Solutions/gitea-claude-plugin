@@ -49,7 +49,7 @@ In Claude Code:
 
 ```text
 /plugin marketplace add Tracht-Digital-Solutions/gitea-claude-plugin
-/plugin install gitea@jtracht-gitea
+/plugin install gitea@tds-gitea
 ```
 
 Or from a terminal:
@@ -58,7 +58,7 @@ Or from a terminal:
 claude plugin install gitea --marketplace Tracht-Digital-Solutions/gitea-claude-plugin
 # equivalent:
 claude plugin marketplace add Tracht-Digital-Solutions/gitea-claude-plugin
-claude plugin install gitea@jtracht-gitea
+claude plugin install gitea@tds-gitea
 ```
 
 > No GitHub SSH key? Set `CLAUDE_CODE_PLUGIN_PREFER_HTTPS=1` before adding the marketplace.

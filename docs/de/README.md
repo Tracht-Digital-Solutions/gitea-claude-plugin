@@ -34,14 +34,14 @@ In Claude Code:
 
 ```text
 /plugin marketplace add Tracht-Digital-Solutions/gitea-claude-plugin
-/plugin install gitea@jtracht-gitea
+/plugin install gitea@tds-gitea
 ```
 
 Oder im Terminal:
 
 ```bash
 claude plugin marketplace add Tracht-Digital-Solutions/gitea-claude-plugin
-claude plugin install gitea@jtracht-gitea
+claude plugin install gitea@tds-gitea
 ```
 
 Ohne SSH-Schlüssel für GitHub vorher `CLAUDE_CODE_PLUGIN_PREFER_HTTPS=1` setzen.

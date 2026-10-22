@@ -68,7 +68,7 @@ jobs:
           token="$(jq -r .token .gitea-test/env.json)"
           echo "::add-mask::${token}"
           claude plugin marketplace add "${REPO}"
-          claude plugin install gitea@jtracht-gitea \
+          claude plugin install gitea@tds-gitea \
             --config "gitea_url=$(jq -r .url .gitea-test/env.json)" \
             --config "gitea_token=${token}" \
             --config allow_insecure_http=true

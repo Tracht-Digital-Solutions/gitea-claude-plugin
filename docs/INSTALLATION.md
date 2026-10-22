@@ -16,16 +16,16 @@ self-contained: nothing is downloaded or compiled during installation.
 
 ```bash
 claude plugin marketplace add Tracht-Digital-Solutions/gitea-claude-plugin
-claude plugin install gitea@jtracht-gitea
+claude plugin install gitea@tds-gitea
 ```
 
 or inside Claude Code: `/plugin marketplace add Tracht-Digital-Solutions/gitea-claude-plugin`, then
-`/plugin install gitea@jtracht-gitea`.
+`/plugin install gitea@tds-gitea`.
 
 The marketplace entry points to the `stable` branch, which contains exactly the files of the latest
 release (the plugin directory of the release tag plus the built server, identical to the release
 zip). Updates arrive with
-`claude plugin update gitea@jtracht-gitea` or `/plugin marketplace update jtracht-gitea`; enable
+`claude plugin update gitea@tds-gitea` or `/plugin marketplace update tds-gitea`; enable
 auto-update for the marketplace in `/plugin` → **Marketplaces** if you like.
 
 Without a GitHub SSH key set `CLAUDE_CODE_PLUGIN_PREFER_HTTPS=1` before adding the marketplace.
@@ -61,8 +61,8 @@ claude --plugin-dir ./plugin
 ## Uninstall
 
 ```bash
-claude plugin uninstall gitea@jtracht-gitea
-claude plugin marketplace remove jtracht-gitea   # also deletes the stored options and token
+claude plugin uninstall gitea@tds-gitea
+claude plugin marketplace remove tds-gitea   # also deletes the stored options and token
 ```
 
 ## Troubleshooting
