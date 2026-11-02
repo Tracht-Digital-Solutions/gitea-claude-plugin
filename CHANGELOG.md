@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.6.1](https://github.com/Tracht-Digital-Solutions/gitea-claude-plugin/compare/v0.6.0...v0.6.1) (2026-11-02)
+
+
+### Bug Fixes
+
+* **deps:** bump @modelcontextprotocol/sdk ([#30](https://github.com/Tracht-Digital-Solutions/gitea-claude-plugin/issues/30)) ([978c1e8](https://github.com/Tracht-Digital-Solutions/gitea-claude-plugin/commit/978c1e8010920bbd59ef96039db7171be2b63aa2))
+* **deps:** bump body-parser from 2.3.0 to 2.4.0 ([#29](https://github.com/Tracht-Digital-Solutions/gitea-claude-plugin/issues/29)) ([ce8816d](https://github.com/Tracht-Digital-Solutions/gitea-claude-plugin/commit/ce8816d75a988092ff3fe94b75a20c4fb48ad373))
+
 ## [0.6.0](https://github.com/Tracht-Digital-Solutions/gitea-claude-plugin/compare/v0.5.2...v0.6.0) (2026-10-22)
 
 
