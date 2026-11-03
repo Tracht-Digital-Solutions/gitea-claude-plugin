@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.2](https://github.com/Tracht-Digital-Solutions/gitea-claude-plugin/compare/v0.6.1...v0.6.2) (2026-11-03)
+
+
+### Miscellaneous
+
+* release 0.6.2 ([b302aa6](https://github.com/Tracht-Digital-Solutions/gitea-claude-plugin/commit/b302aa6d5985d13e2b2298683427e4748ae7c7dc))
+
 ## [0.6.1](https://github.com/Tracht-Digital-Solutions/gitea-claude-plugin/compare/v0.6.0...v0.6.1) (2026-11-02)
 
 
