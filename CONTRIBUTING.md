@@ -64,8 +64,12 @@ claude --plugin-dir ./plugin
 
 ## Releases
 
-Maintainers merge the release pull request opened by Release Please (its CI is started by the
-release workflow, because pull requests opened with `GITHUB_TOKEN` do not trigger workflows). The
+Maintainers merge the release pull request opened by Release Please. With the release GitHub App
+configured (repository variable `RELEASE_APP_CLIENT_ID`, secret `RELEASE_APP_PRIVATE_KEY`; the app
+needs read & write access to contents and pull requests), the app opens the pull request and its
+regular CI gates the merge. Without it, the pull request is opened with `GITHUB_TOKEN`, which does
+not trigger workflows: the release workflow then starts CI via `workflow_dispatch`, but that
+"CI passed" check is not linked to the pull request, so merging needs an administrator. The
 release workflow then runs the full CI against the tag, builds and packages the plugin, attaches the
 zip, checksums, source archive and SBOM to the draft release, updates the `stable` branch that the
 marketplace serves, publishes the release, and finally installs the published plugin from the

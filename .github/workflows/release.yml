@@ -2,9 +2,11 @@ name: Release
 
 # Release flow
 #  1. Release Please maintains a release pull request (version bump in package.json, lock file and
-#     plugin.json, CHANGELOG). Pull requests created with GITHUB_TOKEN do not trigger other
-#     workflows, so this workflow starts CI on the release branch explicitly via workflow_dispatch
-#     (which GITHUB_TOKEN may trigger); its "CI passed" check gates the merge.
+#     plugin.json, CHANGELOG). With a GitHub App configured (RELEASE_APP_CLIENT_ID variable and
+#     RELEASE_APP_PRIVATE_KEY secret) the app opens the pull request and its pull_request CI gates
+#     the merge. Without it, GITHUB_TOKEN is used; its pull requests do not trigger workflows, so
+#     CI is started on the release branch via workflow_dispatch, whose "CI passed" check is not
+#     linked to the pull request (merging then needs an administrator).
 #  2. Merging the release pull request makes Release Please create the tag and a *draft* release.
 #  3. Everything else runs inside this workflow (no tag/release event chaining): the full CI suite
 #     runs against the tag, then the plugin is built and packaged reproducibly, assets, checksums
@@ -41,13 +43,27 @@ jobs:
       release_created: ${{ steps.rp.outputs.release_created }}
       tag_name: ${{ steps.rp.outputs.tag_name }}
     steps:
+      - name: Create a GitHub App token for Release Please
+        # Optional: with the RELEASE_APP_CLIENT_ID variable and RELEASE_APP_PRIVATE_KEY secret set,
+        # the release pull request is opened by the app, so its pull_request workflows run normally
+        # and report "CI passed" on the pull request. Without them, GITHUB_TOKEN is used.
+        id: app
+        if: vars.RELEASE_APP_CLIENT_ID != ''
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         id: rp
         with:
+          token: ${{ steps.app.outputs.token || github.token }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
       - name: Run CI on the release pull request
-        if: steps.rp.outputs.prs_created == 'true'
+        # Only needed with GITHUB_TOKEN: its pull requests do not trigger pull_request workflows.
+        if: steps.rp.outputs.prs_created == 'true' && steps.app.outputs.token == ''
         env:
           GH_TOKEN: ${{ github.token }}
           PR_JSON: ${{ steps.rp.outputs.pr }}
