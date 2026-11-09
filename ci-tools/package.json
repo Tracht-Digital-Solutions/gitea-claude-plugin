@@ -4,6 +4,6 @@
   "private": true,
   "description": "Tools used by CI only (pinned through the lock file).",
   "dependencies": {
-    "@anthropic-ai/claude-code": "2.1.304"
+    "@anthropic-ai/claude-code": "2.1.310"
   }
 }
